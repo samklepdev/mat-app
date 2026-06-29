@@ -1,56 +1,43 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { Stack, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Colors } from "../constants/theme";
+import { initDatabase } from "../db";
+import { UserProfile } from "../types";
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return <RootLayoutNav />;
+function mapRowToProfile(row: Record<string, unknown>): UserProfile {
+  return {
+    id: row.id as string,
+    displayName: (row.display_name as string) ?? undefined,
+    treatmentStartDate: row.treatment_start_date as string,
+    onboardingComplete: row.onboarding_complete === 1,
+    notificationsEnabled: row.notifications_enabled === 1,
+    biometricLockEnabled: row.biometric_lock_enabled === 1,
+    createdAt: row.created_at as string,
+  };
 }
 
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
+  useEffect(() => {
+    initDatabase();
+    router.replace("/onboarding");
+  }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.textPrimary,
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: Colors.background },
+          animation: "fade",
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack>
-    </ThemeProvider>
+    </>
   );
 }
