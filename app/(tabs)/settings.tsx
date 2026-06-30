@@ -7,7 +7,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.sub}>Medications, notifications, and more.</Text>
+        <Text style={styles.sub}>Make it work for you.</Text>
       </View>
     </SafeAreaView>
   );

@@ -22,27 +22,9 @@ export default function TabsLayout() {
         headerShadowVisible: false,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Today',
-          headerTitle: '',
-        }}
-      />
-      <Tabs.Screen
-        name="journal"
-        options={{
-          title: 'Journal',
-          headerTitle: 'Journal',
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          headerTitle: 'Settings',
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Today', headerTitle: '' }} />
+      <Tabs.Screen name="journal" options={{ title: 'Journal', headerTitle: 'Journal' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings', headerTitle: 'Settings' }} />
     </Tabs>
   );
 }

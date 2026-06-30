@@ -14,19 +14,18 @@ export function StreakCard({ streakDays, treatmentStartDate }: StreakCardProps) 
     (Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  const streakLabel =
-    streakDays === 1 ? 'day of stability' : 'days of stability';
+  const streakLabel = 'days of consistent treatment.';
 
   return (
     <Card raised style={styles.card}>
-      <Text style={styles.eyebrow}>YOUR STREAK</Text>
+      <Text style={styles.eyebrow}>SHOWING UP</Text>
       <View style={styles.row}>
         <Text style={styles.number}>{streakDays}</Text>
         <Text style={styles.unit}>{streakLabel}</Text>
       </View>
       <View style={styles.divider} />
       <Text style={styles.sub}>
-        {totalDays} days since you started treatment
+        You're doing the work. This is your record of it.
       </Text>
     </Card>
   );
