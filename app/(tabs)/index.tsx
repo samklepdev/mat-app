@@ -10,8 +10,9 @@ import { StreakCard } from '../../components/features/StreakCard';
 import { CheckInWidget } from '../../components/features/CheckInWidget';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useCheckInStore, useUserStore } from '../../store';
-import { getCurrentStreak, upsertCheckIn } from '../../db';
+import { getCurrentStreak, upsertCheckIn, getCheckInByDate } from '../../db';
 import { CheckIn } from '../../types';
+import { todayLocalISO as todayISO } from '../../utils/date';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -20,8 +21,17 @@ function greeting(): string {
   return 'Good evening.';
 }
 
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
+function mapRowToCheckIn(row: Record<string, unknown>): CheckIn {
+  return {
+    id: row.id as string,
+    date: row.date as string,
+    mood: row.mood as number,
+    sleep: row.sleep as number,
+    cravings: row.cravings as number,
+    tookMedication: row.took_medication === 1,
+    note: (row.note as string) ?? undefined,
+    createdAt: row.created_at as string,
+  };
 }
 
 export default function HomeScreen() {
@@ -29,12 +39,23 @@ export default function HomeScreen() {
   const { profile, stability, setStability } = useUserStore();
   const [saving, setSaving] = useState(false);
 
+  // On mount: check SQLite for today's check-in and current streak,
+  // since Zustand state resets on every cold app launch.
   useEffect(() => {
-    const streak = getCurrentStreak();
-    if (stability) {
-      setStability({ ...stability, currentStreakDays: streak });
+    const existing = getCheckInByDate(todayISO());
+    if (existing) {
+      setTodayCheckIn(mapRowToCheckIn(existing));
     }
-  }, [todayCheckIn]);
+
+    const streak = getCurrentStreak();
+    setStability({
+      currentStreakDays: streak,
+      longestStreakDays: streak, // TODO: track separately once we have history
+      totalCheckIns: 0,
+      medicationAdherencePercent: 0,
+      startDate: profile?.treatmentStartDate ?? todayISO(),
+    });
+  }, []);
 
   const handleCheckIn = async (data: {
     mood: number;
@@ -57,6 +78,17 @@ export default function HomeScreen() {
     });
 
     setTodayCheckIn(checkIn);
+
+    // Refresh streak now that a new check-in exists
+    const streak = getCurrentStreak();
+    setStability({
+      currentStreakDays: streak,
+      longestStreakDays: streak,
+      totalCheckIns: 0,
+      medicationAdherencePercent: 0,
+      startDate: profile?.treatmentStartDate ?? todayISO(),
+    });
+
     setSaving(false);
   };
 
