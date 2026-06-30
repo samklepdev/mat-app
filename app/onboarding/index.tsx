@@ -13,10 +13,12 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Colors, Typography, Spacing, Radius } from '../constants/theme';
-import { MedicationType, UserProfile } from '../types';
-import { useUserStore } from '../store';
-import { db } from '../db';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
+import { MedicationType, UserProfile } from '../../types';
+import { useUserStore } from '../../store';
+import { upsertProfile } from '../../db';
+import { requestNotificationPermissions, scheduleMedicationReminder } from '../../hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 
@@ -94,7 +96,7 @@ function NameScreen({
         <View>
           <Text style={styles.eyebrow}>STEP 1 OF 3</Text>
           <Text style={styles.stepTitle}>What should{'\n'}we call you?</Text>
-          <Text style={styles.stepSub}>Optional — just for your daily greeting.</Text>
+          <Text style={styles.stepSub}>Optional. Just makes this feel a little more like yours.</Text>
         </View>
 
         <TextInput
@@ -143,14 +145,17 @@ function MedicationScreen({
   return (
     <View style={styles.screen}>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.stepContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+        bounces={true}
       >
         <View>
           <Text style={styles.eyebrow}>STEP 2 OF 3</Text>
           <Text style={styles.stepTitle}>Your medication</Text>
-          <Text style={styles.stepSub}>This helps us frame your experience correctly.</Text>
+          <Text style={styles.stepSub}>Every medication is different. This helps us speak your language.</Text>
         </View>
 
         <View style={styles.medList}>
@@ -170,7 +175,7 @@ function MedicationScreen({
         </View>
 
         <View style={styles.dateBlock}>
-          <Text style={styles.dateLabel}>When did you start treatment?</Text>
+          <Text style={styles.dateLabel}>When did you start your medication?</Text>
           <TextInput
             style={styles.textInput}
             placeholder="MM / DD / YYYY"
@@ -179,7 +184,7 @@ function MedicationScreen({
             onChangeText={onDateChange}
             keyboardType="numeric"
           />
-          <Text style={styles.dateHint}>Approximate is fine.</Text>
+          <Text style={styles.dateHint}>Approximate is fine — this is just for your records.</Text>
         </View>
 
         <TouchableOpacity
@@ -199,24 +204,81 @@ function MedicationScreen({
 function NotificationsScreen({
   onEnable,
   onSkip,
+  reminderTime,
+  onTimeChange,
+  reminderNote,
+  onNoteChange,
 }: {
   onEnable: () => void;
   onSkip: () => void;
+  reminderTime: string;
+  onTimeChange: (t: string) => void;
+  reminderNote: string;
+  onNoteChange: (n: string) => void;
 }) {
+  // Parse HH:MM for display
+  const [hours, minutes] = reminderTime.split(':').map(Number);
+  const displayTime = new Date();
+  displayTime.setHours(hours, minutes, 0, 0);
+  const timeLabel = displayTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  const handleTimeChange = (_: any, date?: Date) => {
+    if (!date) return;
+    const h = date.getHours().toString().padStart(2, '0');
+    const m = date.getMinutes().toString().padStart(2, '0');
+    onTimeChange(`${h}:${m}`);
+  };
+
   return (
-    <View style={styles.screen}>
-      <View style={styles.stepContent}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.screen}
+    >
+      <ScrollView
+        contentContainerStyle={styles.stepContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View>
           <Text style={styles.eyebrow}>STEP 3 OF 3</Text>
-          <Text style={styles.stepTitle}>Stay on track</Text>
+          <Text style={styles.stepTitle}>A quiet reminder</Text>
           <Text style={styles.stepSub}>
-            A daily reminder to check in and log your medication. Quiet — one notification a day.
+            Once a day. Just enough to check in with yourself.
           </Text>
         </View>
 
+        {/* Time picker */}
+        <View>
+          <Text style={styles.dateLabel}>What time works for you?</Text>
+          <DateTimePicker
+            value={displayTime}
+            mode="time"
+            display="spinner"
+            onChange={handleTimeChange}
+            themeVariant="dark"
+            style={styles.timePicker}
+          />
+        </View>
+
+        {/* Note field */}
+        <View style={styles.dateBlock}>
+          <Text style={styles.dateLabel}>Add a note (optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="e.g. leave for clinic"
+            placeholderTextColor={Colors.textMuted}
+            value={reminderNote}
+            onChangeText={onNoteChange}
+          />
+        </View>
+
+        {/* Preview */}
         <View style={styles.notifCard}>
-          <Text style={styles.notifPreview}>◈  Time for your daily check-in</Text>
-          <Text style={styles.notifTime}>Every day · 9:00 AM</Text>
+          <Text style={styles.notifPreview}>◈  Time for your medication.</Text>
+          {reminderNote.trim() ? (
+            <Text style={styles.notifNote}>{reminderNote}</Text>
+          ) : null}
+          <Text style={styles.notifTime}>Every day · {timeLabel}</Text>
         </View>
 
         <View style={styles.stepActions}>
@@ -227,8 +289,8 @@ function NotificationsScreen({
             <Text style={styles.skipText}>Not right now</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -239,6 +301,8 @@ export default function OnboardingScreen() {
   const [name, setName] = useState('');
   const [medication, setMedication] = useState<MedicationType | null>(null);
   const [startDate, setStartDate] = useState('');
+  const [reminderTime, setReminderTime] = useState('08:00');
+  const [reminderNote, setReminderNote] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const { setProfile } = useUserStore();
 
@@ -279,22 +343,22 @@ export default function OnboardingScreen() {
       onboardingComplete: true,
       notificationsEnabled,
       biometricLockEnabled: false,
+      reminderTime,
+      reminderNote: reminderNote.trim() || undefined,
       createdAt: now,
     };
 
     // Persist to SQLite
-    db.runSync(
-      `INSERT OR REPLACE INTO user_profile
-        (id, display_name, treatment_start_date, onboarding_complete, notifications_enabled, biometric_lock_enabled, created_at)
-       VALUES (?, ?, ?, 1, ?, 0, ?)`,
-      [
-        profile.id,
-        profile.displayName ?? null,
-        profile.treatmentStartDate,
-        notificationsEnabled ? 1 : 0,
-        profile.createdAt,
-      ]
-    );
+    upsertProfile(profile);
+
+    // Schedule the daily medication reminder if enabled
+    if (notificationsEnabled) {
+      requestNotificationPermissions().then((granted) => {
+        if (granted) {
+          scheduleMedicationReminder(reminderTime, reminderNote.trim() || undefined);
+        }
+      });
+    }
 
     setProfile(profile);
     router.replace('/(tabs)');
@@ -313,6 +377,10 @@ export default function OnboardingScreen() {
     <NotificationsScreen
       onEnable={() => finish(true)}
       onSkip={() => finish(false)}
+      reminderTime={reminderTime}
+      onTimeChange={setReminderTime}
+      reminderNote={reminderNote}
+      onNoteChange={setReminderNote}
     />,
   ];
 
@@ -337,6 +405,8 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     backgroundColor: Colors.background,
   },
   dotsContainer: {
@@ -359,9 +429,11 @@ const styles = StyleSheet.create({
   },
   animContainer: {
     flex: 1,
+    width: '100%',
   },
   screen: {
     flex: 1,
+    width: '100%',
   },
 
   // Welcome
@@ -492,6 +564,15 @@ const styles = StyleSheet.create({
   notifTime: {
     fontSize: 12,
     color: Colors.textMuted,
+  },
+  notifNote: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  timePicker: {
+    marginLeft: -10,
+    height: 150,
   },
 
   // Buttons
