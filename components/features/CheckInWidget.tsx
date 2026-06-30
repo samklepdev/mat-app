@@ -29,9 +29,9 @@ const SLIDERS = [
   },
   {
     key: 'cravings' as const,
-    label: 'Cravings',
-    low: 'Strong',
-    high: 'None',
+    label: 'Comfort',
+    low: 'Unsettled',
+    high: 'Settled',
   },
 ];
 
@@ -81,8 +81,8 @@ export function CheckInWidget({ onComplete, loading }: CheckInWidgetProps) {
 
   return (
     <Card style={styles.card}>
-      <Text style={styles.title}>How are you today?</Text>
-      <Text style={styles.sub}>Takes about 20 seconds.</Text>
+      <Text style={styles.title}>How is your body today?</Text>
+      <Text style={styles.sub}></Text>
 
       <View style={styles.sliders}>
         {SLIDERS.map(({ key, label, low, high }) => (
@@ -97,7 +97,7 @@ export function CheckInWidget({ onComplete, loading }: CheckInWidgetProps) {
         ))}
       </View>
 
-      <Text style={styles.medLabel}>Did you take your medication today?</Text>
+      <Text style={styles.medLabel}>Medication today?</Text>
       <View style={styles.medRow}>
         {[true, false].map((val) => (
           <TouchableOpacity
@@ -115,14 +115,14 @@ export function CheckInWidget({ onComplete, loading }: CheckInWidgetProps) {
                 tookMedication === val && styles.medButtonTextActive,
               ]}
             >
-              {val ? 'Yes' : 'Not yet'}
+              {val ? 'Took it' : 'Not yet'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <Button
-        label="Save check-in"
+        label="Log it"
         onPress={() => {
           if (!isComplete) return;
           onComplete({ mood, sleep, cravings, tookMedication: tookMedication! });

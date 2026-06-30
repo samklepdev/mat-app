@@ -64,5 +64,7 @@ export interface UserProfile {
   onboardingComplete: boolean;
   notificationsEnabled: boolean;
   biometricLockEnabled: boolean;
+  reminderTime: string;   // "HH:MM" 24hr, default "08:00"
+  reminderNote?: string;  // optional e.g. "leave for clinic"
   createdAt: string;
 }

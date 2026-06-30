@@ -87,9 +87,9 @@ export default function HomeScreen() {
         <View style={styles.section}>
           {todayCheckIn ? (
             <View style={styles.doneCard}>
-              <Text style={styles.doneText}>✓ Check-in complete for today</Text>
+              <Text style={styles.doneText}>Logged.</Text>
               <Text style={styles.doneSub}>
-                Come back tomorrow. You're doing the work.
+                See you tomorrow.
               </Text>
             </View>
           ) : (
