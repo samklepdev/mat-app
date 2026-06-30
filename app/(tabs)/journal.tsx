@@ -7,7 +7,7 @@ export default function JournalScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
         <Text style={styles.title}>Journal</Text>
-        <Text style={styles.sub}>Your entries will appear here.</Text>
+        <Text style={styles.sub}>Your record. No one else's.</Text>
       </View>
     </SafeAreaView>
   );
