@@ -43,10 +43,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 // ─── Schedule daily medication reminder ───────────────────────────────────────
 
 export async function scheduleMedicationReminder(
-  timeHHMM: string, // "08:00"
+  timeHHMM: string,
   note?: string
 ): Promise<void> {
-  // Cancel any existing medication reminders first
   await cancelMedicationReminder();
 
   const [hours, minutes] = timeHHMM.split(':').map(Number);
@@ -85,7 +84,6 @@ export function useNotifications(onMedicationTaken: () => void) {
   useEffect(() => {
     registerNotificationCategory();
 
-    // Handle notification action tap (foreground)
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       if (response.actionIdentifier === MEDICATION_TAKEN_ACTION) {
         onMedicationTaken();
