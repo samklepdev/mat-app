@@ -64,20 +64,29 @@ function EntryCard({
   const preview =
     isLong && !expanded ? entry.body.slice(0, 140).trim() + '…' : entry.body;
 
+  const confirmDelete = () => {
+    Alert.alert("Delete entry?", "This can't be undone.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => onDelete(entry.id) },
+    ]);
+  };
+
   return (
     <TouchableOpacity
       style={styles.entryCard}
       onPress={() => isLong && setExpanded((v) => !v)}
-      onLongPress={() =>
-        Alert.alert("Delete entry?", "This can't be undone.", [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => onDelete(entry.id) },
-        ])
-      }
+      onLongPress={confirmDelete}
       activeOpacity={isLong ? 0.7 : 1}
     >
       <View style={styles.entryHeader}>
         <Text style={styles.entryDate}>{formatEntryDate(entry.date)}</Text>
+        <TouchableOpacity
+          onPress={confirmDelete}
+          hitSlop={10}
+          style={styles.entryDeleteBtn}
+        >
+          <Text style={styles.entryDeleteText}>✕</Text>
+        </TouchableOpacity>
       </View>
       {entry.prompt && <Text style={styles.entryPrompt}>{entry.prompt}</Text>}
       <Text style={styles.entryBody}>{preview}</Text>
@@ -346,7 +355,21 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: 4,
   },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  entryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  entryDeleteBtn: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entryDeleteText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
   entryDate: {
     fontSize: 11,
     color: Colors.textMuted,
