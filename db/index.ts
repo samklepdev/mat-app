@@ -52,7 +52,25 @@ export function initDatabase(): void {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS fired_milestones (
+      days INTEGER PRIMARY KEY,
+      fired_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_check_ins_date ON check_ins(date);
+    CREATE TABLE IF NOT EXISTS saved_providers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      street1 TEXT NOT NULL,
+      city TEXT NOT NULL,
+      state TEXT NOT NULL,
+      zip TEXT NOT NULL,
+      phone TEXT,
+      website TEXT,
+      notes TEXT,
+      saved_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
   `);
 
@@ -228,4 +246,88 @@ export function getCurrentStreak(): number {
   return streak;
 }
 
+// ─── Saved Provider Queries ────────────────────────────────────────────────────
+
+export function saveProvider(provider: {
+  id: string;
+  name: string;
+  street1: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone?: string;
+  website?: string;
+  notes?: string;
+  savedAt: string;
+}): void {
+  db.runSync(
+    `INSERT OR REPLACE INTO saved_providers
+      (id, name, street1, city, state, zip, phone, website, notes, saved_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      provider.id,
+      provider.name,
+      provider.street1,
+      provider.city,
+      provider.state,
+      provider.zip,
+      provider.phone ?? null,
+      provider.website ?? null,
+      provider.notes ?? null,
+      provider.savedAt,
+    ]
+  );
+}
+
+export function getSavedProviders() {
+  return db.getAllSync<Record<string, unknown>>(
+    'SELECT * FROM saved_providers ORDER BY saved_at DESC'
+  );
+}
+
+export function isProviderSaved(id: string): boolean {
+  const row = db.getFirstSync<{ id: string }>(
+    'SELECT id FROM saved_providers WHERE id = ?',
+    [id]
+  );
+  return !!row;
+}
+
+export function removeProvider(id: string): void {
+  db.runSync('DELETE FROM saved_providers WHERE id = ?', [id]);
+}
+
+export function updateProviderNotes(id: string, notes: string): void {
+  db.runSync('UPDATE saved_providers SET notes = ? WHERE id = ?', [notes, id]);
+}
+
 export { db };
+
+// ─── Milestone Queries ────────────────────────────────────────────────────────
+
+export function hasMilestoneFired(days: number): boolean {
+  const row = db.getFirstSync<{ days: number }>(
+    'SELECT days FROM fired_milestones WHERE days = ?',
+    [days]
+  );
+  return !!row;
+}
+
+export function recordMilestoneFired(days: number): void {
+  db.runSync(
+    'INSERT OR REPLACE INTO fired_milestones (days, fired_at) VALUES (?, ?)',
+    [days, new Date().toISOString()]
+  );
+}
+
+// ─── Nuclear option — wipe all user data ──────────────────────────────────────
+
+export function deleteAllData(): void {
+  db.execSync(`
+    DELETE FROM check_ins;
+    DELETE FROM journal_entries;
+    DELETE FROM saved_providers;
+    DELETE FROM fired_milestones;
+    DELETE FROM user_profile;
+  `);
+}

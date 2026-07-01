@@ -3,17 +3,19 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Switch,
   Modal,
   TextInput,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
+import { router } from 'expo-router';
 import { useUserStore } from '../../store';
-import { upsertProfile } from '../../db';
+import { upsertProfile, deleteAllData } from '../../db';
 import { parseLocalISO } from '../../utils/date';
 import {
   requestNotificationPermissions,
@@ -199,6 +201,25 @@ export default function SettingsScreen() {
     );
   }
 
+  const handleDeleteAllData = () => {
+    Alert.alert(
+      'Delete all data?',
+      'This will permanently erase your check-ins, journal entries, saved providers, and profile. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete everything',
+          style: 'destructive',
+          onPress: async () => {
+            await cancelMedicationReminder();
+            deleteAllData();
+            router.replace('/onboarding');
+          },
+        },
+      ]
+    );
+  };
+
   const persistProfile = (updates: Partial<typeof profile>) => {
     const updated = { ...profile, ...updates };
     upsertProfile({
@@ -303,6 +324,19 @@ export default function SettingsScreen() {
           <View style={styles.card}>
             <SettingRow label="About this app" onPress={() => setAboutVisible(true)} />
           </View>
+        </View>
+
+        {/* Delete data */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>DATA</Text>
+          <View style={styles.card}>
+            <TouchableOpacity style={styles.row} onPress={handleDeleteAllData} activeOpacity={0.7}>
+              <Text style={styles.deleteLabel}>Delete all my data</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.deleteHint}>
+            Permanently erases everything — check-ins, journal entries, saved providers, and your profile. Cannot be undone.
+          </Text>
         </View>
       </ScrollView>
 
@@ -438,6 +472,16 @@ const styles = StyleSheet.create({
     color: Colors.textInverse,
     fontSize: 15,
     fontWeight: '600',
+  },
+  deleteLabel: {
+    fontSize: 15,
+    color: Colors.error,
+  },
+  deleteHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 17,
+    paddingHorizontal: 2,
   },
   aboutParagraph: {
     fontSize: 14,
