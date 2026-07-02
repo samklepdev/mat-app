@@ -55,6 +55,21 @@ export interface StabilityStats {
   startDate: string; // when the user first started tracking
 }
 
+// ─── Saved Provider ─────────────────────────────────────────────────────────────
+
+export interface SavedProvider {
+  id: string;
+  name: string;
+  street1: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone?: string;
+  website?: string;
+  notes?: string;
+  savedAt: string;
+}
+
 // ─── User / Settings ──────────────────────────────────────────────────────────
 
 export interface UserProfile {

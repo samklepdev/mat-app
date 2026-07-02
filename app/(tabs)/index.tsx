@@ -4,15 +4,22 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { StreakCard } from '../../components/features/StreakCard';
 import { CheckInWidget } from '../../components/features/CheckInWidget';
 import { Colors, Spacing, Typography } from '../../constants/theme';
 import { useCheckInStore, useUserStore } from '../../store';
-import { getCurrentStreak, upsertCheckIn, getCheckInByDate } from '../../db';
+import { getCurrentStreak, upsertCheckIn, getCheckInByDate, hasMilestoneFired, recordMilestoneFired } from '../../db';
 import { CheckIn } from '../../types';
 import { todayLocalISO as todayISO } from '../../utils/date';
+import {
+  getMilestoneForStreak,
+  fireMilestoneNotification,
+  scheduleWeeklySummary,
+} from '../../hooks/useNotifications';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -89,6 +96,16 @@ export default function HomeScreen() {
       startDate: profile?.treatmentStartDate ?? todayISO(),
     });
 
+    // Check for milestone and fire notification if not already fired
+    const milestone = getMilestoneForStreak(streak);
+    if (milestone && !hasMilestoneFired(milestone)) {
+      recordMilestoneFired(milestone);
+      fireMilestoneNotification(milestone);
+    }
+
+    // Schedule weekly summary since user has logged this week
+    scheduleWeeklySummary();
+
     setSaving(false);
   };
 
@@ -107,12 +124,21 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Streak */}
+        {/* Streak — only show once there's something meaningful to display */}
         {stability && profile && (
-          <StreakCard
-            streakDays={stability.currentStreakDays}
-            treatmentStartDate={profile.treatmentStartDate}
-          />
+          stability.currentStreakDays > 0 ? (
+            <StreakCard
+              streakDays={stability.currentStreakDays}
+              treatmentStartDate={profile.treatmentStartDate}
+            />
+          ) : (
+            <View style={styles.firstDayCard}>
+              <Text style={styles.firstDayTitle}>Day 1 starts now.</Text>
+              <Text style={styles.firstDaySub}>
+                Log your medication below to start your record.
+              </Text>
+            </View>
+          )
         )}
 
         {/* Check-in */}
@@ -128,6 +154,15 @@ export default function HomeScreen() {
             <CheckInWidget onComplete={handleCheckIn} loading={saving} />
           )}
         </View>
+
+        {/* Find care — always accessible, no friction */}
+        <TouchableOpacity
+          style={styles.findCareLink}
+          onPress={() => router.push('/find-care')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.findCareLinkText}>Need to find a provider? →</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -175,5 +210,29 @@ const styles = StyleSheet.create({
   doneSub: {
     ...Typography.bodySmall,
     color: Colors.textMuted,
+  },
+  firstDayCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
+  },
+  firstDayTitle: {
+    ...Typography.h2,
+    fontWeight: '300',
+  },
+  firstDaySub: {
+    ...Typography.bodySmall,
+    color: Colors.textMuted,
+  },
+  findCareLink: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  findCareLinkText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });

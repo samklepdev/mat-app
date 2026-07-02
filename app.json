@@ -8,6 +8,9 @@
     "scheme": "matapp",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Used to find MAT providers near you. Your location is never stored or shared."
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.mat-app"
     },

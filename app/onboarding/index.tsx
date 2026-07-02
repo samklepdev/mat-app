@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
@@ -326,6 +326,7 @@ export default function OnboardingScreen() {
   };
 
   const next = () => animateNext(step + 1);
+  const back = () => animateNext(step - 1);
 
   const finish = (notificationsEnabled: boolean) => {
     const now = new Date().toISOString();
@@ -389,10 +390,14 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Dots — hidden on welcome screen */}
+      {/* Dots and back — hidden on welcome screen */}
       {step > 0 && (
         <View style={styles.dotsContainer}>
+          <TouchableOpacity onPress={back} hitSlop={10} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>‹ Back</Text>
+          </TouchableOpacity>
           <StepDots current={step - 1} total={totalSteps - 1} />
+          <View style={styles.backBtnPlaceholder} />
         </View>
       )}
 
@@ -414,7 +419,20 @@ const styles = StyleSheet.create({
   },
   dotsContainer: {
     paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backBtn: {
+    width: 60,
+  },
+  backBtnText: {
+    fontSize: 16,
+    color: Colors.primary,
+  },
+  backBtnPlaceholder: {
+    width: 60,
   },
   dots: {
     flexDirection: 'row',

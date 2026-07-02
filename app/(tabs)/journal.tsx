@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
 import {
   createJournalEntry,

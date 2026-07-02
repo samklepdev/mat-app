@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/theme';
-import { initDatabase, db } from '../db';
+import { initDatabase, getProfile } from '../db';
+import '../tasks/medicationTask'; // register background task at startup
+import { registerNotificationCategory } from '../hooks/useNotifications';
 import { useUserStore } from '../store';
 import { UserProfile } from '../types';
 
@@ -27,9 +30,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     initDatabase();
-    const row = db.getFirstSync<Record<string, unknown>>(
-      'SELECT * FROM user_profile WHERE onboarding_complete = 1 LIMIT 1'
-    );
+    registerNotificationCategory(); // ensure 'I took it' action is registered
+    const row = getProfile();
+
     if (row) {
       setProfile(mapRowToProfile(row));
       setReady(true);
@@ -45,7 +48,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -58,7 +61,9 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="find-care" options={{ headerShown: false }} />
+        <Stack.Screen name="saved-providers" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }
