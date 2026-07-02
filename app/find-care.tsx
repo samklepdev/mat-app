@@ -1,32 +1,27 @@
-import * as Location from "expo-location";
-import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import React, { useState, useCallback, useEffect } from 'react';
 import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import { router } from 'expo-router';
+import { Colors, Spacing, Typography, Radius } from '../constants/theme';
+import { searchNearbyMatFacilities, TreatmentFacility } from '../api/findTreatment';
+import { SearchFilters, FilterState, DEFAULT_FILTERS, RadiusMiles } from '../components/features/SearchFilters';
 import {
-  searchNearbyMatFacilities,
-  TreatmentFacility,
-} from "../api/findTreatment";
-import {
-  applyFilters,
-  DEFAULT_FILTERS,
-  FilterState,
-  SearchFilters,
-} from "../components/features/SearchFilters";
-import { Colors, Radius, Spacing, Typography } from "../constants/theme";
-import {
-  getSavedProviders,
+  saveProvider,
   removeProvider,
-  saveProvider
-} from "../db";
+  isProviderSaved,
+  getSavedProviders,
+} from '../db';
+import { SavedProvider } from '../types';
 
 // ─── Facility card ────────────────────────────────────────────────────────────
 
@@ -41,13 +36,13 @@ function FacilityCard({
 }) {
   const handleCall = () => {
     if (facility.phone) {
-      Linking.openURL(`tel:${facility.phone.replace(/[^\d]/g, "")}`);
+      Linking.openURL(`tel:${facility.phone.replace(/[^\d]/g, '')}`);
     }
   };
 
   const handleDirections = () => {
     const query = encodeURIComponent(
-      `${facility.street1}, ${facility.city}, ${facility.state} ${facility.zip}`,
+      `${facility.street1}, ${facility.city}, ${facility.state} ${facility.zip}`
     );
     Linking.openURL(`https://maps.apple.com/?address=${query}`);
   };
@@ -60,19 +55,15 @@ function FacilityCard({
           <Text style={styles.cardAddress}>
             {facility.street1}, {facility.city}, {facility.state} {facility.zip}
           </Text>
-          <Text style={styles.cardDistance}>
-            {facility.milesAway.toFixed(1)} mi away
-          </Text>
+          <Text style={styles.cardDistance}>{facility.milesAway.toFixed(1)} mi away</Text>
         </View>
         <TouchableOpacity
           onPress={() => onSaveToggle(facility)}
           hitSlop={10}
           style={styles.saveBtn}
         >
-          <Text
-            style={[styles.saveBtnText, isSaved && styles.saveBtnTextActive]}
-          >
-            {isSaved ? "★" : "☆"}
+          <Text style={[styles.saveBtnText, isSaved && styles.saveBtnTextActive]}>
+            {isSaved ? '★' : '☆'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -100,8 +91,9 @@ export default function FindCareScreen() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const lastCoordsRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
-  const filteredFacilities = applyFilters(facilities, filters);
+  const filteredFacilities = facilities;
 
   const refreshSavedIds = useCallback(() => {
     const saved = getSavedProviders();
@@ -124,26 +116,48 @@ export default function FindCareScreen() {
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setError("Location access is needed to find care near you.");
+      if (status !== 'granted') {
+        setError('Location access is needed to find care near you.');
         setLoading(false);
         return;
       }
 
       const position = await Location.getCurrentPositionAsync({});
+      lastCoordsRef.current = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
       const results = await searchNearbyMatFacilities({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        radiusMiles: 50,
+        radiusMiles: filters.radiusMiles,
       });
 
-      console.log("[FindCare] results count:", results.length);
-      console.log("[FindCare] first result:", results[0]?.name);
+      console.log('[FindCare] results count:', results.length);
+      console.log('[FindCare] first result:', results[0]?.name);
       setFacilities(results);
       setHasSearched(true);
     } catch (err) {
-      console.log("[FindCare] error:", err);
+      console.log('[FindCare] error:', err);
       setError("Couldn't load nearby care right now. Try again in a moment.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRadiusChange = async (radius: RadiusMiles) => {
+    if (!lastCoordsRef.current) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await searchNearbyMatFacilities({
+        latitude: lastCoordsRef.current.lat,
+        longitude: lastCoordsRef.current.lng,
+        radiusMiles: radius,
+      });
+      setFacilities(results);
+    } catch {
+      setError("Couldn't reload results. Try again.");
     } finally {
       setLoading(false);
     }
@@ -191,12 +205,11 @@ export default function FindCareScreen() {
         <View style={styles.crisisBanner}>
           <Text style={styles.crisisTitle}>Need help today?</Text>
           <Text style={styles.crisisBody}>
-            SAMHSA's National Helpline is free, confidential, and available
-            24/7.
+            SAMHSA's National Helpline is free, confidential, and available 24/7.
           </Text>
           <TouchableOpacity
             style={styles.crisisButton}
-            onPress={() => Linking.openURL("tel:1-800-662-4357")}
+            onPress={() => Linking.openURL('tel:1-800-662-4357')}
           >
             <Text style={styles.crisisButtonText}>Call 1-800-662-4357</Text>
           </TouchableOpacity>
@@ -205,11 +218,11 @@ export default function FindCareScreen() {
         {/* Saved providers link */}
         <TouchableOpacity
           style={styles.savedLink}
-          onPress={() => router.push("/saved-providers")}
+          onPress={() => router.push('/saved-providers')}
           activeOpacity={0.7}
         >
           <Text style={styles.savedLinkText}>
-            ★ My saved providers {savedIds.size > 0 ? `(${savedIds.size})` : ""}
+            ★ My saved providers {savedIds.size > 0 ? `(${savedIds.size})` : ''}
           </Text>
         </TouchableOpacity>
 
@@ -218,7 +231,8 @@ export default function FindCareScreen() {
           <SearchFilters
             filters={filters}
             onChange={setFilters}
-            resultCount={filteredFacilities.length}
+            resultCount={facilities.length}
+            onRadiusChange={handleRadiusChange}
           />
         )}
 
@@ -259,8 +273,7 @@ export default function FindCareScreen() {
           <View style={styles.results}>
             <View style={styles.resultsHeader}>
               <Text style={styles.resultsLabel}>
-                {filteredFacilities.length}{" "}
-                {filteredFacilities.length === 1 ? "result" : "results"}
+                {filteredFacilities.length} {filteredFacilities.length === 1 ? 'result' : 'results'}
               </Text>
               <TouchableOpacity onPress={handleReset} hitSlop={10}>
                 <Text style={styles.resetButton}>Search again</Text>
@@ -269,8 +282,8 @@ export default function FindCareScreen() {
             {filteredFacilities.length === 0 ? (
               <Text style={styles.emptyText}>
                 {facilities.length === 0
-                  ? "No MAT providers found within 50 miles. Try the National Helpline above — they can help you find options further out."
-                  : "No results match your filters. Try removing some filters to see more providers."}
+                  ? 'No MAT providers found within 50 miles. Try the National Helpline above — they can help you find options further out.'
+                  : 'No results match your filters. Try removing some filters to see more providers.'}
               </Text>
             ) : (
               filteredFacilities.map((f) => (
@@ -316,7 +329,7 @@ const styles = StyleSheet.create({
   },
   crisisTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.textPrimary,
   },
   crisisBody: {
@@ -329,12 +342,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     paddingVertical: 10,
-    alignItems: "center",
+    alignItems: 'center',
   },
   crisisButtonText: {
     color: Colors.textInverse,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 
   savedLink: {
@@ -343,12 +356,12 @@ const styles = StyleSheet.create({
   savedLinkText: {
     fontSize: 14,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 
   searchPrompt: {
     gap: Spacing.sm,
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: Spacing.md,
   },
   searchButton: {
@@ -356,8 +369,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     paddingVertical: 14,
     paddingHorizontal: Spacing.xl,
-    alignItems: "center",
-    width: "100%",
+    alignItems: 'center',
+    width: '100%',
   },
   searchButtonText: {
     ...Typography.label,
@@ -366,12 +379,12 @@ const styles = StyleSheet.create({
   searchHint: {
     fontSize: 12,
     color: Colors.textMuted,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 17,
   },
 
   loadingState: {
-    alignItems: "center",
+    alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.xl,
   },
@@ -381,14 +394,14 @@ const styles = StyleSheet.create({
   },
 
   errorState: {
-    alignItems: "center",
+    alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.lg,
   },
   errorText: {
     fontSize: 13,
     color: Colors.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
   },
   retryButton: {
     paddingVertical: 8,
@@ -397,19 +410,19 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 13,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 
   results: { gap: Spacing.sm },
   resultsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   resetButton: {
     fontSize: 13,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   resultsLabel: {
     ...Typography.eyebrow,
@@ -431,13 +444,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   cardName: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 2,
   },
@@ -454,8 +467,8 @@ const styles = StyleSheet.create({
   saveBtn: {
     width: 32,
     height: 32,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveBtnText: {
     fontSize: 20,
@@ -465,14 +478,14 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   cardActions: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: Spacing.sm,
   },
   actionBtn: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: Radius.md,
-    alignItems: "center",
+    alignItems: 'center',
     backgroundColor: Colors.surfaceRaised,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -480,6 +493,6 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 13,
     color: Colors.primary,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 });

@@ -1,5 +1,7 @@
 const BASE_URL = 'https://findtreatment.gov/locator/exportsAsJson/v2';
-const MAT_SERVICE_CODES = 'OTP,BU,NU';
+const MAT_SERVICE_CODES = 'OTP,BU,NU,MH,SA,HI,DX';
+
+export type FacilityType = 'OTP' | 'BU' | 'NU' | string;
 
 export interface TreatmentFacility {
   id: string;
@@ -15,6 +17,7 @@ export interface TreatmentFacility {
   latitude: number;
   longitude: number;
   milesAway: number;
+  typeFacility: FacilityType; // OTP = methadone clinic, BU = buprenorphine, NU = naltrexone
   services: string[];
 }
 
@@ -29,28 +32,38 @@ interface RawFacilityRow {
   zip: string;
   phone: string | null;
   website: string | null;
-  latitude: string;
-  longitude: string;
+  latitude: string;  // NOTE: SAMHSA has lat/lng swapped — latitude field contains longitude value
+  longitude: string; // and longitude field contains latitude value
   miles: number;
-  services: Array<{ f1: string; f2: string; f3: string }>;
+  typeFacility: string;
+  services: null; // always null at list level — use typeFacility for filtering
+}
+
+interface RawResponse {
+  page: number;
+  totalPages: number;
+  recordCount: number;
+  rows: RawFacilityRow[] | RawFacilityRow | null;
 }
 
 function mapFacility(row: RawFacilityRow): TreatmentFacility {
   return {
     id: `${row.name1}-${row.street1}-${row._irow}`.replace(/\s+/g, '-'),
     name: row.name1,
-    name2: row.name2 ?? undefined,
+    name2: row.name2 || undefined,
     street1: row.street1,
-    street2: row.street2 ?? undefined,
+    street2: row.street2 || undefined,
     city: row.city,
     state: row.state,
     zip: row.zip,
-    phone: row.phone ?? undefined,
-    website: row.website ?? undefined,
-    latitude: parseFloat(row.latitude),
-    longitude: parseFloat(row.longitude),
+    phone: row.phone || undefined,
+    website: row.website || undefined,
+    // SAMHSA has lat/lng swapped in their API response
+    latitude: parseFloat(row.longitude),
+    longitude: parseFloat(row.latitude),
     milesAway: row.miles,
-    services: (row.services || []).map((s) => s.f3),
+    typeFacility: row.typeFacility,
+    services: [], // not available at list level
   };
 }
 
@@ -70,42 +83,25 @@ export async function searchNearbyMatFacilities(params: {
     `sCodes=${MAT_SERVICE_CODES}`,
     `sAddr=${longitude},${latitude}`,
     `limitType=2`,
-    `limitValue=${milesToMeters(radiusMiles)}`,
+    `limitValue=${Math.round(milesToMeters(radiusMiles))}`,
     `pageSize=${pageSize}`,
     `page=1`,
     `sort=0`,
   ];
 
-  const requestUrl = `${BASE_URL}?${queryParams.join('&')}`;
-  console.log('[FindTreatment] URL:', requestUrl);
+  const url = `${BASE_URL}?${queryParams.join('&')}`;
+  const response = await fetch(url);
 
-  const data = await new Promise<any>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', requestUrl);
-    xhr.timeout = 15000;
+  if (!response.ok) {
+    throw new Error(`FindTreatment.gov request failed: ${response.status}`);
+  }
 
-    xhr.onload = () => {
-      console.log('[FindTreatment] status:', xhr.status);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const parsed = JSON.parse(xhr.responseText);
-          console.log('[FindTreatment] recordCount:', parsed.recordCount);
-          console.log('[FindTreatment] rows type:', typeof parsed.rows, Array.isArray(parsed.rows));
-          resolve(parsed);
-        } catch (e) {
-          reject(new Error('Failed to parse response'));
-        }
-      } else {
-        reject(new Error(`Request failed: ${xhr.status}`));
-      }
-    };
-
-    xhr.onerror = () => reject(new Error('Network error'));
-    xhr.ontimeout = () => reject(new Error('Timed out'));
-    xhr.send();
-  });
+  const data: RawResponse = await response.json();
 
   if (!data.rows) return [];
-  const rows: RawFacilityRow[] = Array.isArray(data.rows) ? data.rows : [data.rows];
+  const rows = Array.isArray(data.rows) ? data.rows : [data.rows];
+  if (__DEV__) {
+    console.log('[FindTreatment] typeFacility values:', rows.map((r: any) => `${r.name1}: ${r.typeFacility}`).join(', '));
+  }
   return rows.map(mapFacility);
 }
