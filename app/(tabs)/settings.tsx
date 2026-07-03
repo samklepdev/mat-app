@@ -319,6 +319,18 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Learn */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>RESOURCES</Text>
+          <View style={styles.card}>
+            <SettingRow
+              label="Learn about MAT"
+              value="8 articles"
+              onPress={() => router.push('/learn')}
+            />
+          </View>
+        </View>
+
         {/* About */}
         <View style={styles.section}>
           <View style={styles.card}>
