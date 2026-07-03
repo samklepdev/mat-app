@@ -1,30 +1,31 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Modal,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Colors, Radius, Spacing, Typography } from "../../constants/theme";
 import {
   createJournalEntry,
-  getRecentJournalEntries,
   deleteJournalEntry,
-} from '../../db';
-import { JournalEntry } from '../../types';
-import { todayLocalISO, parseLocalISO, isSameLocalDay } from '../../utils/date';
+  getJournalEntryCount,
+  getRecentJournalEntries,
+} from "../../db";
+import { JournalEntry } from "../../types";
+import { isSameLocalDay, parseLocalISO, todayLocalISO } from "../../utils/date";
 
 const PROMPTS = [
   "What's one thing your body did well today?",
-  'What helped you feel more settled this week?',
-  'What would you tell yourself from 30 days ago?',
+  "What helped you feel more settled this week?",
+  "What would you tell yourself from 30 days ago?",
 ];
 
 function mapRowToEntry(row: Record<string, unknown>): JournalEntry {
@@ -44,10 +45,10 @@ function formatEntryDate(iso: string): string {
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (isSameLocalDay(date, today)) return 'Today';
-  if (isSameLocalDay(date, yesterday)) return 'Yesterday';
+  if (isSameLocalDay(date, today)) return "Today";
+  if (isSameLocalDay(date, yesterday)) return "Yesterday";
 
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 // ─── Past entry card ──────────────────────────────────────────────────────────
@@ -62,12 +63,16 @@ function EntryCard({
   const [expanded, setExpanded] = useState(false);
   const isLong = entry.body.length > 140;
   const preview =
-    isLong && !expanded ? entry.body.slice(0, 140).trim() + '…' : entry.body;
+    isLong && !expanded ? entry.body.slice(0, 140).trim() + "…" : entry.body;
 
   const confirmDelete = () => {
     Alert.alert("Delete entry?", "This can't be undone.", [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => onDelete(entry.id) },
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => onDelete(entry.id),
+      },
     ]);
   };
 
@@ -106,14 +111,14 @@ function WriteEntryModal({
   onSaved: () => void;
 }) {
   const [selectedPrompt, setSelectedPrompt] = useState<number | null>(null);
-  const [text, setText] = useState('');
-  const [customTopic, setCustomTopic] = useState('');
+  const [text, setText] = useState("");
+  const [customTopic, setCustomTopic] = useState("");
   const [customTopicFocused, setCustomTopicFocused] = useState(false);
 
   const handlePromptSelect = (index: number) => {
     setSelectedPrompt(index);
-    setCustomTopic('');
-    setText(PROMPTS[index] + '\n\n');
+    setCustomTopic("");
+    setText(PROMPTS[index] + "\n\n");
   };
 
   const handleCustomTopicChange = (value: string) => {
@@ -122,9 +127,9 @@ function WriteEntryModal({
   };
 
   const reset = () => {
-    setText('');
+    setText("");
     setSelectedPrompt(null);
-    setCustomTopic('');
+    setCustomTopic("");
   };
 
   const handleClose = () => {
@@ -160,26 +165,27 @@ function WriteEntryModal({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <SafeAreaView style={styles.modalSafe}>
+        {/* Modal header — outside KeyboardAvoidingView so it's always tappable */}
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={handleClose} hitSlop={12}>
+            <Text style={styles.modalCancel}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={!text.trim()}
+            hitSlop={12}
+          >
+            <Text
+              style={[styles.modalDone, !text.trim() && styles.modalDoneDim]}
+            >
+              Done
+            </Text>
+          </TouchableOpacity>
+        </View>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
-          {/* Modal header */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={handleClose} hitSlop={12}>
-              <Text style={styles.modalCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!text.trim()}
-              hitSlop={12}
-            >
-              <Text style={[styles.modalDone, !text.trim() && styles.modalDoneDim]}>
-                Done
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           <ScrollView
             contentContainerStyle={styles.modalContent}
             showsVerticalScrollIndicator={false}
@@ -256,19 +262,36 @@ function WriteEntryModal({
 export default function JournalScreen() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [writeModalVisible, setWriteModalVisible] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 20;
 
-  const loadEntries = useCallback(() => {
-    const rows = getRecentJournalEntries(50);
-    setEntries(rows.map(mapRowToEntry));
-  }, []);
+  const loadEntries = useCallback(
+    (reset = true) => {
+      const offset = reset ? 0 : page * PAGE_SIZE;
+      const rows = getRecentJournalEntries(PAGE_SIZE, reset ? 0 : offset);
+      const total = getJournalEntryCount();
+
+      if (reset) {
+        setEntries(rows.map(mapRowToEntry));
+        setPage(1);
+        setHasMore(total > PAGE_SIZE);
+      } else {
+        setEntries((prev) => [...prev, ...rows.map(mapRowToEntry)]);
+        setPage((p) => p + 1);
+        setHasMore(offset + rows.length < total);
+      }
+    },
+    [page],
+  );
 
   useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
+    loadEntries(true);
+  }, []);
 
   const handleDelete = (id: string) => {
     deleteJournalEntry(id);
-    loadEntries();
+    loadEntries(true);
   };
 
   return (
@@ -289,7 +312,7 @@ export default function JournalScreen() {
           onPress={() => setWriteModalVisible(true)}
           activeOpacity={0.8}
         >
-          <Text style={styles.newEntryButtonText}>＋  New entry</Text>
+          <Text style={styles.newEntryButtonText}>＋ New entry</Text>
         </TouchableOpacity>
 
         {/* Entries */}
@@ -304,6 +327,15 @@ export default function JournalScreen() {
             {entries.map((entry) => (
               <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} />
             ))}
+            {hasMore && (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={() => loadEntries(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.loadMoreText}>Load more</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </ScrollView>
@@ -329,7 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
   },
   newEntryButtonText: {
     ...Typography.label,
@@ -338,15 +370,28 @@ const styles = StyleSheet.create({
 
   emptyState: {
     paddingVertical: Spacing.xxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     ...Typography.bodySmall,
     color: Colors.textMuted,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   entryList: { gap: Spacing.sm },
+  loadMoreBtn: {
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+  },
+  loadMoreText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: "500",
+  },
   entryCard: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
@@ -356,15 +401,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   entryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   entryDeleteBtn: {
     width: 24,
     height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   entryDeleteText: {
     fontSize: 13,
@@ -374,12 +419,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   entryPrompt: {
     fontSize: 12,
     color: Colors.primary,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     marginBottom: 2,
   },
   entryBody: {
@@ -391,9 +436,9 @@ const styles = StyleSheet.create({
   // Modal
   modalSafe: { flex: 1, backgroundColor: Colors.background },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -405,7 +450,7 @@ const styles = StyleSheet.create({
   },
   modalDone: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.primary,
   },
   modalDoneDim: {

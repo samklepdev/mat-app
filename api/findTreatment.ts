@@ -1,12 +1,9 @@
 const BASE_URL = 'https://findtreatment.gov/locator/exportsAsJson/v2';
 const MAT_SERVICE_CODES = 'OTP,BU,NU,MH,SA,HI,DX';
 
-export type FacilityType = 'OTP' | 'BU' | 'NU' | string;
-
 export interface TreatmentFacility {
   id: string;
   name: string;
-  name2?: string;
   street1: string;
   street2?: string;
   city: string;
@@ -17,8 +14,14 @@ export interface TreatmentFacility {
   latitude: number;
   longitude: number;
   milesAway: number;
-  typeFacility: FacilityType; // OTP = methadone clinic, BU = buprenorphine, NU = naltrexone
-  services: string[];
+  typeFacility: string;
+}
+
+export interface SearchResult {
+  facilities: TreatmentFacility[];
+  totalPages: number;
+  currentPage: number;
+  recordCount: number;
 }
 
 interface RawFacilityRow {
@@ -32,11 +35,11 @@ interface RawFacilityRow {
   zip: string;
   phone: string | null;
   website: string | null;
-  latitude: string;  // NOTE: SAMHSA has lat/lng swapped — latitude field contains longitude value
-  longitude: string; // and longitude field contains latitude value
+  latitude: string;
+  longitude: string;
   miles: number;
   typeFacility: string;
-  services: null; // always null at list level — use typeFacility for filtering
+  services: null;
 }
 
 interface RawResponse {
@@ -50,7 +53,6 @@ function mapFacility(row: RawFacilityRow): TreatmentFacility {
   return {
     id: `${row.name1}-${row.street1}-${row._irow}`.replace(/\s+/g, '-'),
     name: row.name1,
-    name2: row.name2 || undefined,
     street1: row.street1,
     street2: row.street2 || undefined,
     city: row.city,
@@ -58,12 +60,10 @@ function mapFacility(row: RawFacilityRow): TreatmentFacility {
     zip: row.zip,
     phone: row.phone || undefined,
     website: row.website || undefined,
-    // SAMHSA has lat/lng swapped in their API response
-    latitude: parseFloat(row.longitude),
+    latitude: parseFloat(row.longitude),  // SAMHSA has lat/lng swapped
     longitude: parseFloat(row.latitude),
     milesAway: row.miles,
-    typeFacility: row.typeFacility,
-    services: [], // not available at list level
+    typeFacility: row.typeFacility ?? '',
   };
 }
 
@@ -76,8 +76,9 @@ export async function searchNearbyMatFacilities(params: {
   longitude: number;
   radiusMiles?: number;
   pageSize?: number;
-}): Promise<TreatmentFacility[]> {
-  const { latitude, longitude, radiusMiles = 50, pageSize = 100 } = params;
+  page?: number;
+}): Promise<SearchResult> {
+  const { latitude, longitude, radiusMiles = 50, pageSize = 20, page = 1 } = params;
 
   const queryParams = [
     `sCodes=${MAT_SERVICE_CODES}`,
@@ -85,7 +86,7 @@ export async function searchNearbyMatFacilities(params: {
     `limitType=2`,
     `limitValue=${Math.round(milesToMeters(radiusMiles))}`,
     `pageSize=${pageSize}`,
-    `page=1`,
+    `page=${page}`,
     `sort=0`,
   ];
 
@@ -98,10 +99,24 @@ export async function searchNearbyMatFacilities(params: {
 
   const data: RawResponse = await response.json();
 
-  if (!data.rows) return [];
-  const rows = Array.isArray(data.rows) ? data.rows : [data.rows];
-  if (__DEV__) {
-    console.log('[FindTreatment] typeFacility values:', rows.map((r: any) => `${r.name1}: ${r.typeFacility}`).join(', '));
+  if (!data.rows) {
+    return { facilities: [], totalPages: 0, currentPage: page, recordCount: 0 };
   }
-  return rows.map(mapFacility);
+
+  const rows: RawFacilityRow[] = Array.isArray(data.rows)
+    ? data.rows
+    : typeof data.rows === 'object' && data.rows !== null
+    ? [data.rows as RawFacilityRow]
+    : [];
+
+  if (__DEV__) {
+    console.log('[FindTreatment] typeFacility values:', rows.map(r => `${r.name1}: ${r.typeFacility}`).join(', '));
+  }
+
+  return {
+    facilities: rows.map(mapFacility),
+    totalPages: data.totalPages ?? 1,
+    currentPage: page,
+    recordCount: data.recordCount ?? rows.length,
+  };
 }

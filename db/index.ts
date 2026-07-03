@@ -202,11 +202,18 @@ export function createJournalEntry(entry: {
   );
 }
 
-export function getRecentJournalEntries(limit = 30) {
+export function getRecentJournalEntries(limit = 20, offset = 0) {
   return db.getAllSync<Record<string, unknown>>(
-    'SELECT * FROM journal_entries ORDER BY created_at DESC LIMIT ?',
-    [limit]
+    'SELECT * FROM journal_entries ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    [limit, offset]
   );
+}
+
+export function getJournalEntryCount(): number {
+  const row = db.getFirstSync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM journal_entries'
+  );
+  return row?.count ?? 0;
 }
 
 export function deleteJournalEntry(id: string): void {

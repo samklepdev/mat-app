@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '../constants/theme';
-import { searchNearbyMatFacilities, TreatmentFacility } from '../api/findTreatment';
+import { searchNearbyMatFacilities, TreatmentFacility, SearchResult } from '../api/findTreatment';
 import { SearchFilters, FilterState, DEFAULT_FILTERS, RadiusMiles } from '../components/features/SearchFilters';
 import {
   saveProvider,
@@ -91,6 +91,9 @@ export default function FindCareScreen() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const lastCoordsRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
   const filteredFacilities = facilities;
@@ -127,15 +130,18 @@ export default function FindCareScreen() {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       };
-      const results = await searchNearbyMatFacilities({
+      const result = await searchNearbyMatFacilities({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         radiusMiles: filters.radiusMiles,
+        page: 1,
       });
 
-      console.log('[FindCare] results count:', results.length);
-      console.log('[FindCare] first result:', results[0]?.name);
-      setFacilities(results);
+      console.log('[FindCare] results count:', result.facilities.length);
+      console.log('[FindCare] first result:', result.facilities[0]?.name);
+      setFacilities(result.facilities);
+      setCurrentPage(1);
+      setTotalPages(result.totalPages);
       setHasSearched(true);
     } catch (err) {
       console.log('[FindCare] error:', err);
@@ -150,16 +156,40 @@ export default function FindCareScreen() {
     setLoading(true);
     setError(null);
     try {
-      const results = await searchNearbyMatFacilities({
+      const result = await searchNearbyMatFacilities({
         latitude: lastCoordsRef.current.lat,
         longitude: lastCoordsRef.current.lng,
         radiusMiles: radius,
+        page: 1,
       });
-      setFacilities(results);
+      setFacilities(result.facilities);
+      setCurrentPage(1);
+      setTotalPages(result.totalPages);
     } catch {
       setError("Couldn't reload results. Try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!lastCoordsRef.current || loadingMore || currentPage >= totalPages) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const result = await searchNearbyMatFacilities({
+        latitude: lastCoordsRef.current.lat,
+        longitude: lastCoordsRef.current.lng,
+        radiusMiles: filters.radiusMiles,
+        page: nextPage,
+      });
+      setFacilities((prev) => [...prev, ...result.facilities]);
+      setCurrentPage(nextPage);
+      setTotalPages(result.totalPages);
+    } catch {
+      // silently fail — user can try again
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -420,6 +450,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resetButton: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
+  loadMoreButton: {
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+  },
+  loadMoreText: {
     fontSize: 13,
     color: Colors.primary,
     fontWeight: '500',
