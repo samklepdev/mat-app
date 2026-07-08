@@ -110,7 +110,6 @@ export default function WinsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View>
-          TouchableOpacity
           <Text style={styles.title}>Life rebuilt</Text>
           <Text style={styles.sub}>
             The record of everything you're getting back.
