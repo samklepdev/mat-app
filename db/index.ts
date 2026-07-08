@@ -57,6 +57,13 @@ export function initDatabase(): void {
       fired_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS wins (
+      id TEXT PRIMARY KEY,
+      text TEXT NOT NULL,
+      date TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_check_ins_date ON check_ins(date);
     CREATE TABLE IF NOT EXISTS saved_providers (
       id TEXT PRIMARY KEY,
@@ -77,6 +84,7 @@ export function initDatabase(): void {
   const migrations = [
     `ALTER TABLE user_profile ADD COLUMN reminder_time TEXT NOT NULL DEFAULT '08:00'`,
     `ALTER TABLE user_profile ADD COLUMN reminder_note TEXT`,
+    `ALTER TABLE user_profile ADD COLUMN daily_cost REAL`,
   ];
 
   for (const sql of migrations) {
@@ -310,6 +318,48 @@ export function updateProviderNotes(id: string, notes: string): void {
 
 export { db };
 
+// ─── Wins Queries ─────────────────────────────────────────────────────────────
+
+export function addWin(win: { id: string; text: string; date: string; createdAt: string }): void {
+  db.runSync(
+    'INSERT INTO wins (id, text, date, created_at) VALUES (?, ?, ?, ?)',
+    [win.id, win.text, win.date, win.createdAt]
+  );
+}
+
+export function getWins(limit = 50) {
+  return db.getAllSync<Record<string, unknown>>(
+    'SELECT * FROM wins ORDER BY created_at DESC LIMIT ?',
+    [limit]
+  );
+}
+
+export function deleteWin(id: string): void {
+  db.runSync('DELETE FROM wins WHERE id = ?', [id]);
+}
+
+// ─── Insights Queries ─────────────────────────────────────────────────────────
+
+export function getCheckInStats(days = 90) {
+  return db.getAllSync<{
+    date: string;
+    mood: number;
+    sleep: number;
+    cravings: number;
+    took_medication: number;
+  }>(
+    `SELECT date, mood, sleep, cravings, took_medication
+     FROM check_ins
+     WHERE date >= date('now', ?)
+     ORDER BY date ASC`,
+    [`-${days} days`]
+  );
+}
+
+export function updateDailyCost(cost: number | null): void {
+  db.runSync('UPDATE user_profile SET daily_cost = ?', [cost]);
+}
+
 // ─── Milestone Queries ────────────────────────────────────────────────────────
 
 export function hasMilestoneFired(days: number): boolean {
@@ -335,6 +385,7 @@ export function deleteAllData(): void {
     DELETE FROM journal_entries;
     DELETE FROM saved_providers;
     DELETE FROM fired_milestones;
+    DELETE FROM wins;
     DELETE FROM user_profile;
   `);
 }
