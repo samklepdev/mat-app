@@ -64,6 +64,8 @@ export default function RootLayout() {
         <Stack.Screen name="find-care" options={{ headerShown: false }} />
         <Stack.Screen name="saved-providers" options={{ headerShown: false }} />
         <Stack.Screen name="learn" options={{ headerShown: false }} />
+        <Stack.Screen name="learn-article" options={{ headerShown: false, presentation: 'modal' }} />
+        <Stack.Screen name="journal-write" options={{ headerShown: false, presentation: 'modal' }} />
       </Stack>
     </SafeAreaProvider>
   );
