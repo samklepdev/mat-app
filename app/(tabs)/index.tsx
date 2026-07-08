@@ -20,6 +20,11 @@ import {
   fireMilestoneNotification,
   scheduleWeeklySummary,
 } from '../../hooks/useNotifications';
+import { getMilestoneForDay } from '../../content/healingTimeline';
+import { getTodaysReflection } from '../../content/reflections';
+import { generateInsights, Insight } from '../../utils/insights';
+import { getCheckInStats } from '../../db';
+import { parseLocalISO } from '../../utils/date';
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -45,6 +50,13 @@ export default function HomeScreen() {
   const { todayCheckIn, setTodayCheckIn } = useCheckInStore();
   const { profile, stability, setStability } = useUserStore();
   const [saving, setSaving] = useState(false);
+  const [insights, setInsights] = useState<Insight[]>([]);
+
+  const treatmentDay = profile
+    ? Math.max(1, Math.floor((Date.now() - parseLocalISO(profile.treatmentStartDate).getTime()) / 86400000) + 1)
+    : 1;
+  const healingMilestone = getMilestoneForDay(treatmentDay);
+  const reflection = getTodaysReflection();
 
   // On mount: check SQLite for today's check-in and current streak,
   // since Zustand state resets on every cold app launch.
@@ -62,6 +74,10 @@ export default function HomeScreen() {
       medicationAdherencePercent: 0,
       startDate: profile?.treatmentStartDate ?? todayISO(),
     });
+
+    // Generate insights from check-in history
+    const stats = getCheckInStats(90);
+    setInsights(generateInsights(stats));
   }, []);
 
   const handleCheckIn = async (data: {
@@ -141,6 +157,15 @@ export default function HomeScreen() {
           )
         )}
 
+        {/* Healing timeline — today's milestone */}
+        {healingMilestone && (
+          <View style={styles.healingCard}>
+            <Text style={styles.healingEyebrow}>DAY {treatmentDay} · YOUR BODY</Text>
+            <Text style={styles.healingTitle}>{healingMilestone.title}</Text>
+            <Text style={styles.healingBody}>{healingMilestone.body}</Text>
+          </View>
+        )}
+
         {/* Check-in */}
         <View style={styles.section}>
           {todayCheckIn ? (
@@ -155,14 +180,42 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Find care — always accessible, no friction */}
+        {/* Insights from your own data */}
+        {insights.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.insightsLabel}>NOTICING</Text>
+            {insights.map((insight) => (
+              <View key={insight.id} style={styles.insightCard}>
+                <Text style={styles.insightText}>{insight.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Daily reflection */}
+        <View style={styles.reflectionCard}>
+          <Text style={styles.reflectionEyebrow}>TODAY'S REFLECTION</Text>
+          <Text style={styles.reflectionText}>{reflection.text}</Text>
+        </View>
+
+        {/* Wins link */}
         <TouchableOpacity
-          style={styles.findCareLink}
-          onPress={() => router.push('/find-care')}
-          activeOpacity={0.7}
+          style={styles.winsLink}
+          onPress={() => router.push('/wins')}
+          activeOpacity={0.75}
         >
-          <Text style={styles.findCareLinkText}>Need to find a provider? →</Text>
+          <Text style={styles.winsLinkText}>Life rebuilt — wins & money saved →</Text>
         </TouchableOpacity>
+
+        {/* Quick links — always accessible */}
+        <View style={styles.quickLinks}>
+          <TouchableOpacity onPress={() => router.push('/find-care')} activeOpacity={0.7}>
+            <Text style={styles.quickLinkText}>Find a provider →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/learn')} activeOpacity={0.7}>
+            <Text style={styles.quickLinkText}>Learn about MAT →</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -227,11 +280,75 @@ const styles = StyleSheet.create({
     ...Typography.bodySmall,
     color: Colors.textMuted,
   },
-  findCareLink: {
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
+  healingCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.primaryDim,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
   },
-  findCareLinkText: {
+  healingEyebrow: {
+    ...Typography.eyebrow,
+    fontSize: 10,
+  },
+  healingTitle: {
+    ...Typography.h3,
+    fontWeight: '500',
+  },
+  healingBody: {
+    ...Typography.bodySmall,
+    lineHeight: 20,
+  },
+  insightsLabel: {
+    ...Typography.eyebrow,
+    color: Colors.textMuted,
+    letterSpacing: 1.2,
+    marginBottom: 2,
+  },
+  insightCard: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: Spacing.md,
+  },
+  insightText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+  },
+  reflectionCard: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  reflectionEyebrow: {
+    ...Typography.eyebrow,
+    fontSize: 10,
+    color: Colors.textMuted,
+  },
+  reflectionText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  winsLink: {
+    paddingVertical: Spacing.xs,
+  },
+  winsLinkText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  quickLinks: {
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  quickLinkText: {
     fontSize: 13,
     color: Colors.textSecondary,
   },

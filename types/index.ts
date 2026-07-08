@@ -81,5 +81,6 @@ export interface UserProfile {
   biometricLockEnabled: boolean;
   reminderTime: string;   // "HH:MM" 24hr, default "08:00"
   reminderNote?: string;  // optional e.g. "leave for clinic"
+  dailyCost?: number;     // former daily spend, for the money-saved tracker
   createdAt: string;
 }
