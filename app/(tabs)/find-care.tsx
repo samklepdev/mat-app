@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
-import { searchNearbyMatFacilities, TreatmentFacility, SearchResult } from '../../api/findTreatment';
+import { searchTreatmentFacilities, TreatmentFacility, SearchResult } from '../../api/findTreatment';
 import { SearchFilters, FilterState, DEFAULT_FILTERS, RadiusMiles } from '../../components/features/SearchFilters';
 import {
   saveProvider,
@@ -51,11 +51,29 @@ function FacilityCard({
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardName}>{facility.name}</Text>
+          <View style={styles.cardNameRow}>
+            <Text style={styles.cardName}>{facility.name}</Text>
+            <Text
+              style={[
+                styles.sourceBadge,
+                facility.source === 'samhsa' && styles.sourceBadgeSamhsa,
+              ]}
+            >
+              {facility.source === 'samhsa' ? 'SAMHSA registry' : 'Google search'}
+            </Text>
+          </View>
           <Text style={styles.cardAddress}>
             {facility.street1}, {facility.city}, {facility.state} {facility.zip}
           </Text>
-          <Text style={styles.cardDistance}>{facility.milesAway.toFixed(1)} mi away</Text>
+          <View style={styles.cardMetaRow}>
+            <Text style={styles.cardDistance}>{facility.milesAway.toFixed(1)} mi away</Text>
+            {facility.rating !== undefined && (
+              <Text style={styles.cardRating}>
+                ★ {facility.rating.toFixed(1)}
+                {facility.ratingCount ? ` (${facility.ratingCount})` : ''}
+              </Text>
+            )}
+          </View>
         </View>
         <TouchableOpacity
           onPress={() => onSaveToggle(facility)}
@@ -130,7 +148,7 @@ export default function FindCareScreen() {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       };
-      const result = await searchNearbyMatFacilities({
+      const result = await searchTreatmentFacilities({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         radiusMiles: filters.radiusMiles,
@@ -156,7 +174,7 @@ export default function FindCareScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await searchNearbyMatFacilities({
+      const result = await searchTreatmentFacilities({
         latitude: lastCoordsRef.current.lat,
         longitude: lastCoordsRef.current.lng,
         radiusMiles: radius,
@@ -177,7 +195,7 @@ export default function FindCareScreen() {
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const result = await searchNearbyMatFacilities({
+      const result = await searchTreatmentFacilities({
         latitude: lastCoordsRef.current.lat,
         longitude: lastCoordsRef.current.lng,
         radiusMiles: filters.radiusMiles,
@@ -477,21 +495,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  cardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
   cardName: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginBottom: 2,
+    flexShrink: 1,
+  },
+  sourceBadge: {
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    color: Colors.textMuted,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.full,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  sourceBadgeSamhsa: {
+    color: Colors.primaryLight,
+    borderColor: Colors.primary,
   },
   cardAddress: {
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 17,
   },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: 2,
+  },
   cardDistance: {
     fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 2,
+  },
+  cardRating: {
+    fontSize: 11,
+    color: Colors.textMuted,
   },
   saveBtn: {
     width: 32,
