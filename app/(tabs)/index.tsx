@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CheckInWidget } from "../../components/features/CheckInWidget";
 import { StreakCard } from "../../components/features/StreakCard";
 import { Colors, Radius, Spacing, Typography } from "../../constants/theme";
+import { CheckInResponse, getCheckInResponse } from "../../content/checkInResponses";
 import { getMilestoneForDay } from "../../content/healingTimeline";
 import { getTodaysReflection } from "../../content/reflections";
 import {
@@ -58,6 +59,7 @@ export default function HomeScreen() {
   const { profile, stability, setStability } = useUserStore();
   const [saving, setSaving] = useState(false);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [checkInPayoff, setCheckInPayoff] = useState<CheckInResponse | null>(null);
 
   const treatmentDay = profile
     ? Math.max(
@@ -135,15 +137,28 @@ export default function HomeScreen() {
     // Schedule weekly summary since user has logged this week
     scheduleWeeklySummary();
 
+    // Refresh insights from the newly-updated history — used both for the
+    // "NOTICING" feed and for picking the check-in payoff below.
+    const freshStats = getCheckInStats(90);
+    const freshInsights = generateInsights(freshStats);
+    setInsights(freshInsights);
+
+    const isRoughEntry = data.mood <= 2 || data.cravings <= 2;
+    // Give the check-in an immediate payoff instead of a static "Logged.":
+    // a supportive reflection on a rough entry, a relevant insight when one
+    // is available, or an affirming small-win note otherwise.
+    setCheckInPayoff(
+      !isRoughEntry && freshInsights.length > 0
+        ? { title: "Something we noticed", body: freshInsights[0].text }
+        : getCheckInResponse(data, treatmentDay)
+    );
+
     if (profile?.notificationsEnabled) {
       // Reset the "we noticed the quiet" window now that they've shown up.
       scheduleMissedCheckInNudge();
 
       // A supportive nudge for tomorrow if mood/comfort have been trending
       // down this week — reuses the same trend detection as the insights feed.
-      const freshStats = getCheckInStats(90);
-      const freshInsights = generateInsights(freshStats);
-      setInsights(freshInsights);
       const declining = freshInsights.some(
         (i) => i.id === "trend-mood-down" || i.id === "trend-comfort-down"
       );
@@ -202,8 +217,12 @@ export default function HomeScreen() {
         <View style={styles.section}>
           {todayCheckIn ? (
             <View style={styles.doneCard}>
-              <Text style={styles.doneText}>Logged.</Text>
-              <Text style={styles.doneSub}>See you tomorrow.</Text>
+              <Text style={styles.doneText}>
+                {checkInPayoff?.title ?? "Logged."}
+              </Text>
+              <Text style={styles.doneSub}>
+                {checkInPayoff?.body ?? "See you tomorrow."}
+              </Text>
             </View>
           ) : (
             <CheckInWidget onComplete={handleCheckIn} loading={saving} />
