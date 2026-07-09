@@ -1,19 +1,19 @@
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import React, { useState, useCallback } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
+  View,
   Text,
+  StyleSheet,
+  ScrollView,
   TextInput,
   TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors, Radius, Spacing, Typography } from "../constants/theme";
-import { addWin, deleteWin, getWins, updateDailyCost } from "../db";
-import { useUserStore } from "../store";
-import { parseLocalISO, todayLocalISO } from "../utils/date";
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useFocusEffect, Stack } from 'expo-router';
+import { Colors, Spacing, Typography, Radius } from '../constants/theme';
+import { addWin, getWins, deleteWin, updateDailyCost } from '../db';
+import { useUserStore } from '../store';
+import { todayLocalISO, parseLocalISO } from '../utils/date';
 
 interface Win {
   id: string;
@@ -39,8 +39,8 @@ function daysSince(iso: string): number {
 export default function WinsScreen() {
   const { profile } = useUserStore();
   const [wins, setWins] = useState<Win[]>([]);
-  const [newWin, setNewWin] = useState("");
-  const [costInput, setCostInput] = useState("");
+  const [newWin, setNewWin] = useState('');
+  const [costInput, setCostInput] = useState('');
   const [editingCost, setEditingCost] = useState(false);
 
   const dailyCost = (profile as any)?.dailyCost as number | undefined;
@@ -51,11 +51,7 @@ export default function WinsScreen() {
     setWins(getWins(100).map(mapRow));
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const handleAdd = () => {
     if (!newWin.trim()) return;
@@ -65,21 +61,14 @@ export default function WinsScreen() {
       date: todayLocalISO(),
       createdAt: new Date().toISOString(),
     });
-    setNewWin("");
+    setNewWin('');
     load();
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert("Remove this win?", "", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          deleteWin(id);
-          load();
-        },
-      },
+    Alert.alert('Remove this win?', '', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => { deleteWin(id); load(); } },
     ]);
   };
 
@@ -89,9 +78,7 @@ export default function WinsScreen() {
       updateDailyCost(parsed);
       // update in-memory profile so the number shows immediately
       if (profile) {
-        useUserStore
-          .getState()
-          .setProfile({ ...(profile as any), dailyCost: parsed });
+        useUserStore.getState().setProfile({ ...(profile as any), dailyCost: parsed });
       }
     }
     setEditingCost(false);
@@ -99,21 +86,17 @@ export default function WinsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.backRow}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
           <Text style={styles.backButton}>‹ Back</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View>
           <Text style={styles.title}>Life rebuilt</Text>
-          <Text style={styles.sub}>
-            The record of everything you're getting back.
-          </Text>
+          <Text style={styles.sub}>The record of everything you're getting back.</Text>
         </View>
 
         {/* Money saved */}
@@ -122,19 +105,12 @@ export default function WinsScreen() {
             <>
               <Text style={styles.eyebrow}>NOT SPENT</Text>
               <View style={styles.moneyRow}>
-                <Text style={styles.moneyNumber}>
-                  ${moneySaved.toLocaleString()}
-                </Text>
+                <Text style={styles.moneyNumber}>${moneySaved.toLocaleString()}</Text>
               </View>
               <Text style={styles.moneySub}>
                 {treatmentDays} days × ${dailyCost}/day
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setCostInput(String(dailyCost));
-                  setEditingCost(true);
-                }}
-              >
+              <TouchableOpacity onPress={() => { setCostInput(String(dailyCost)); setEditingCost(true); }}>
                 <Text style={styles.moneyEdit}>Edit daily amount</Text>
               </TouchableOpacity>
             </>
@@ -142,14 +118,9 @@ export default function WinsScreen() {
             <>
               <Text style={styles.eyebrow}>NOT SPENT</Text>
               <Text style={styles.moneySetupText}>
-                Roughly what did a day cost, before? We'll keep a running total
-                of what stays in your pocket now. This stays on your device like
-                everything else.
+                Roughly what did a day cost, before? We'll keep a running total of what stays in your pocket now. This stays on your device like everything else.
               </Text>
-              <TouchableOpacity
-                style={styles.moneySetupBtn}
-                onPress={() => setEditingCost(true)}
-              >
+              <TouchableOpacity style={styles.moneySetupBtn} onPress={() => setEditingCost(true)}>
                 <Text style={styles.moneySetupBtnText}>Set daily amount</Text>
               </TouchableOpacity>
             </>
@@ -167,10 +138,7 @@ export default function WinsScreen() {
                 style={styles.costInput}
                 autoFocus
               />
-              <TouchableOpacity
-                onPress={handleSaveCost}
-                style={styles.costSaveBtn}
-              >
+              <TouchableOpacity onPress={handleSaveCost} style={styles.costSaveBtn}>
                 <Text style={styles.costSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -181,8 +149,7 @@ export default function WinsScreen() {
         <View style={styles.addSection}>
           <Text style={styles.sectionLabel}>WINS</Text>
           <Text style={styles.winsHint}>
-            License back. First paycheck. Called your mom. The milestones that
-            don't fit on a chip.
+            License back. First paycheck. Called your mom. The milestones that don't fit on a chip.
           </Text>
           <View style={styles.addRow}>
             <TextInput
@@ -216,10 +183,7 @@ export default function WinsScreen() {
               >
                 <Text style={styles.winText}>{win.text}</Text>
                 <Text style={styles.winDate}>
-                  {parseLocalISO(win.date).toLocaleDateString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {parseLocalISO(win.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -232,11 +196,7 @@ export default function WinsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  backRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.xs,
-  },
+  backRow: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xs, paddingBottom: Spacing.xs },
   backButton: { fontSize: 16, color: Colors.primary },
   content: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.xl },
   title: { ...Typography.h1, marginBottom: 4 },
@@ -251,34 +211,21 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   eyebrow: { ...Typography.eyebrow },
-  moneyRow: { flexDirection: "row", alignItems: "baseline" },
+  moneyRow: { flexDirection: 'row', alignItems: 'baseline' },
   moneyNumber: { ...Typography.display, fontSize: 56, letterSpacing: -2 },
   moneySub: { ...Typography.bodySmall, color: Colors.textMuted },
   moneyEdit: { fontSize: 12, color: Colors.primary, marginTop: Spacing.xs },
-  moneySetupText: {
-    ...Typography.bodySmall,
-    lineHeight: 20,
-    marginVertical: Spacing.xs,
-  },
+  moneySetupText: { ...Typography.bodySmall, lineHeight: 20, marginVertical: Spacing.xs },
   moneySetupBtn: {
     backgroundColor: Colors.primaryDim,
     borderWidth: 1,
     borderColor: Colors.primary,
     borderRadius: Radius.md,
     paddingVertical: 10,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  moneySetupBtnText: {
-    fontSize: 14,
-    color: Colors.primaryLight,
-    fontWeight: "500",
-  },
-  costEditRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
+  moneySetupBtnText: { fontSize: 14, color: Colors.primaryLight, fontWeight: '500' },
+  costEditRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
   dollarSign: { fontSize: 20, color: Colors.textSecondary },
   costInput: {
     flex: 1,
@@ -296,20 +243,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: Spacing.md,
   },
-  costSaveText: { color: Colors.textInverse, fontWeight: "600", fontSize: 14 },
+  costSaveText: { color: Colors.textInverse, fontWeight: '600', fontSize: 14 },
 
   addSection: { gap: Spacing.sm },
-  sectionLabel: {
-    ...Typography.eyebrow,
-    color: Colors.textMuted,
-    letterSpacing: 1.2,
-  },
-  winsHint: {
-    ...Typography.bodySmall,
-    color: Colors.textMuted,
-    lineHeight: 18,
-  },
-  addRow: { flexDirection: "row", gap: Spacing.sm },
+  sectionLabel: { ...Typography.eyebrow, color: Colors.textMuted, letterSpacing: 1.2 },
+  winsHint: { ...Typography.bodySmall, color: Colors.textMuted, lineHeight: 18 },
+  addRow: { flexDirection: 'row', gap: Spacing.sm },
   addInput: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -324,8 +263,8 @@ const styles = StyleSheet.create({
     width: 48,
     borderRadius: Radius.md,
     backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addBtnDim: { backgroundColor: Colors.surfaceRaised },
   addBtnText: { fontSize: 20, color: Colors.textInverse },
@@ -337,9 +276,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: Radius.lg,
     padding: Spacing.md,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
   winText: { flex: 1, fontSize: 14, color: Colors.textPrimary, lineHeight: 20 },

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { getArticleById } from '../content/articles';
 
@@ -18,6 +18,7 @@ export default function LearnArticleScreen() {
   if (!article) {
     return (
       <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
             <Text style={styles.done}>Done</Text>

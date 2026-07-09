@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { Colors, Spacing, Typography, Radius } from '../constants/theme';
 import { getSavedProviders, removeProvider, updateProviderNotes } from '../db';
 import { SavedProvider } from '../types';
@@ -132,6 +132,7 @@ export default function SavedProvidersScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
           <Text style={styles.backButton}>‹ Back</Text>
