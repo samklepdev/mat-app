@@ -24,6 +24,8 @@ import {
 import {
   fireMilestoneNotification,
   getMilestoneForStreak,
+  scheduleMissedCheckInNudge,
+  scheduleSupportiveNudge,
   scheduleWeeklySummary,
 } from "../../hooks/useNotifications";
 import { useCheckInStore, useUserStore } from "../../store";
@@ -132,6 +134,23 @@ export default function HomeScreen() {
 
     // Schedule weekly summary since user has logged this week
     scheduleWeeklySummary();
+
+    if (profile?.notificationsEnabled) {
+      // Reset the "we noticed the quiet" window now that they've shown up.
+      scheduleMissedCheckInNudge();
+
+      // A supportive nudge for tomorrow if mood/comfort have been trending
+      // down this week — reuses the same trend detection as the insights feed.
+      const freshStats = getCheckInStats(90);
+      const freshInsights = generateInsights(freshStats);
+      setInsights(freshInsights);
+      const declining = freshInsights.some(
+        (i) => i.id === "trend-mood-down" || i.id === "trend-comfort-down"
+      );
+      if (declining) {
+        scheduleSupportiveNudge();
+      }
+    }
 
     setSaving(false);
   };

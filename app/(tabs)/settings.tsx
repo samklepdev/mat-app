@@ -21,6 +21,9 @@ import {
   requestNotificationPermissions,
   scheduleMedicationReminder,
   cancelMedicationReminder,
+  scheduleMissedCheckInNudge,
+  cancelMissedCheckInNudge,
+  cancelSupportiveNudge,
 } from '../../hooks/useNotifications';
 
 const MEDICATION_LABELS: Record<string, string> = {
@@ -212,6 +215,8 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await cancelMedicationReminder();
+            await cancelMissedCheckInNudge();
+            await cancelSupportiveNudge();
             deleteAllData();
             router.replace('/onboarding');
           },
@@ -241,9 +246,12 @@ export default function SettingsScreen() {
       const granted = await requestNotificationPermissions();
       if (granted) {
         await scheduleMedicationReminder(profile.reminderTime, profile.reminderNote);
+        await scheduleMissedCheckInNudge();
       }
     } else {
       await cancelMedicationReminder();
+      await cancelMissedCheckInNudge();
+      await cancelSupportiveNudge();
     }
     persistProfile({ notificationsEnabled: value });
   };

@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/theme';
 import { initDatabase, getProfile } from '../db';
 import '../tasks/medicationTask'; // register background task at startup
-import { registerNotificationCategory } from '../hooks/useNotifications';
+import { registerNotificationCategory, useEngagementNotificationRouting } from '../hooks/useNotifications';
 import { useUserStore } from '../store';
 import { UserProfile } from '../types';
 
@@ -29,6 +29,8 @@ function mapRowToProfile(row: Record<string, unknown>): UserProfile {
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const { setProfile } = useUserStore();
+
+  useEngagementNotificationRouting();
 
   useEffect(() => {
     initDatabase();
