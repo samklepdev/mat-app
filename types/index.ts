@@ -82,5 +82,6 @@ export interface UserProfile {
   reminderTime: string;   // "HH:MM" 24hr, default "08:00"
   reminderNote?: string;  // optional e.g. "leave for clinic"
   dailyCost?: number;     // former daily spend, for the money-saved tracker
+  whyNote?: string;       // personal note surfaced in the hard-moment screen
   createdAt: string;
 }

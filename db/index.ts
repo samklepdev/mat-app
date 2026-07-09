@@ -85,6 +85,7 @@ export function initDatabase(): void {
     `ALTER TABLE user_profile ADD COLUMN reminder_time TEXT NOT NULL DEFAULT '08:00'`,
     `ALTER TABLE user_profile ADD COLUMN reminder_note TEXT`,
     `ALTER TABLE user_profile ADD COLUMN daily_cost REAL`,
+    `ALTER TABLE user_profile ADD COLUMN why_note TEXT`,
   ];
 
   for (const sql of migrations) {
@@ -358,6 +359,10 @@ export function getCheckInStats(days = 90) {
 
 export function updateDailyCost(cost: number | null): void {
   db.runSync('UPDATE user_profile SET daily_cost = ?', [cost]);
+}
+
+export function updateWhyNote(note: string | null): void {
+  db.runSync('UPDATE user_profile SET why_note = ?', [note]);
 }
 
 // ─── Milestone Queries ────────────────────────────────────────────────────────

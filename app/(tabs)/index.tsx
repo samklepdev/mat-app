@@ -1,36 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ScrollView,
-  View,
-  Text,
   StyleSheet,
+  Text,
   TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { StreakCard } from '../../components/features/StreakCard';
-import { CheckInWidget } from '../../components/features/CheckInWidget';
-import { Colors, Spacing, Typography } from '../../constants/theme';
-import { useCheckInStore, useUserStore } from '../../store';
-import { getCurrentStreak, upsertCheckIn, getCheckInByDate, hasMilestoneFired, recordMilestoneFired } from '../../db';
-import { CheckIn } from '../../types';
-import { todayLocalISO as todayISO } from '../../utils/date';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { CheckInWidget } from "../../components/features/CheckInWidget";
+import { StreakCard } from "../../components/features/StreakCard";
+import { Colors, Radius, Spacing, Typography } from "../../constants/theme";
+import { getMilestoneForDay } from "../../content/healingTimeline";
+import { getTodaysReflection } from "../../content/reflections";
 import {
-  getMilestoneForStreak,
+  getCheckInByDate,
+  getCheckInStats,
+  getCurrentStreak,
+  hasMilestoneFired,
+  recordMilestoneFired,
+  upsertCheckIn,
+} from "../../db";
+import {
   fireMilestoneNotification,
+  getMilestoneForStreak,
   scheduleWeeklySummary,
-} from '../../hooks/useNotifications';
-import { getMilestoneForDay } from '../../content/healingTimeline';
-import { getTodaysReflection } from '../../content/reflections';
-import { generateInsights, Insight } from '../../utils/insights';
-import { getCheckInStats } from '../../db';
-import { parseLocalISO } from '../../utils/date';
+} from "../../hooks/useNotifications";
+import { useCheckInStore, useUserStore } from "../../store";
+import { CheckIn } from "../../types";
+import { parseLocalISO, todayLocalISO as todayISO } from "../../utils/date";
+import { generateInsights, Insight } from "../../utils/insights";
 
 function greeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning.';
-  if (hour < 17) return 'Good afternoon.';
-  return 'Good evening.';
+  if (hour < 12) return "Good morning.";
+  if (hour < 17) return "Good afternoon.";
+  return "Good evening.";
 }
 
 function mapRowToCheckIn(row: Record<string, unknown>): CheckIn {
@@ -53,7 +58,13 @@ export default function HomeScreen() {
   const [insights, setInsights] = useState<Insight[]>([]);
 
   const treatmentDay = profile
-    ? Math.max(1, Math.floor((Date.now() - parseLocalISO(profile.treatmentStartDate).getTime()) / 86400000) + 1)
+    ? Math.max(
+        1,
+        Math.floor(
+          (Date.now() - parseLocalISO(profile.treatmentStartDate).getTime()) /
+            86400000,
+        ) + 1,
+      )
     : 1;
   const healingMilestone = getMilestoneForDay(treatmentDay);
   const reflection = getTodaysReflection();
@@ -141,8 +152,9 @@ export default function HomeScreen() {
         </View>
 
         {/* Streak — only show once there's something meaningful to display */}
-        {stability && profile && (
-          stability.currentStreakDays > 0 ? (
+        {stability &&
+          profile &&
+          (stability.currentStreakDays > 0 ? (
             <StreakCard
               streakDays={stability.currentStreakDays}
               treatmentStartDate={profile.treatmentStartDate}
@@ -154,13 +166,14 @@ export default function HomeScreen() {
                 Log your medication below to start your record.
               </Text>
             </View>
-          )
-        )}
+          ))}
 
         {/* Healing timeline — today's milestone */}
         {healingMilestone && (
           <View style={styles.healingCard}>
-            <Text style={styles.healingEyebrow}>DAY {treatmentDay} · YOUR BODY</Text>
+            <Text style={styles.healingEyebrow}>
+              DAY {treatmentDay} · YOUR BODY
+            </Text>
             <Text style={styles.healingTitle}>{healingMilestone.title}</Text>
             <Text style={styles.healingBody}>{healingMilestone.body}</Text>
           </View>
@@ -171,9 +184,7 @@ export default function HomeScreen() {
           {todayCheckIn ? (
             <View style={styles.doneCard}>
               <Text style={styles.doneText}>Logged.</Text>
-              <Text style={styles.doneSub}>
-                See you tomorrow.
-              </Text>
+              <Text style={styles.doneSub}>See you tomorrow.</Text>
             </View>
           ) : (
             <CheckInWidget onComplete={handleCheckIn} loading={saving} />
@@ -201,22 +212,25 @@ export default function HomeScreen() {
         {/* Wins link */}
         <TouchableOpacity
           style={styles.winsLink}
-          onPress={() => router.push('/wins')}
+          onPress={() => router.push("/wins")}
           activeOpacity={0.75}
         >
-          <Text style={styles.winsLinkText}>Life rebuilt — wins & money saved →</Text>
+          <Text style={styles.winsLinkText}>
+            Life rebuilt — wins & money saved →
+          </Text>
         </TouchableOpacity>
-
-        {/* Quick links — always accessible */}
-        <View style={styles.quickLinks}>
-          <TouchableOpacity onPress={() => router.push('/find-care')} activeOpacity={0.7}>
-            <Text style={styles.quickLinkText}>Find a provider →</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/learn')} activeOpacity={0.7}>
-            <Text style={styles.quickLinkText}>Learn about MAT →</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* Persistent hard-moment button — always reachable */}
+      <View style={styles.hardMomentWrap} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.hardMomentButton}
+          onPress={() => router.push("/right-now")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.hardMomentText}>Having a hard moment?</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -232,14 +246,14 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     gap: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingBottom: 96,
   },
   header: {
     marginBottom: Spacing.sm,
   },
   greeting: {
     ...Typography.h1,
-    fontWeight: '300',
+    fontWeight: "300",
   },
   name: {
     ...Typography.h1,
@@ -274,7 +288,7 @@ const styles = StyleSheet.create({
   },
   firstDayTitle: {
     ...Typography.h2,
-    fontWeight: '300',
+    fontWeight: "300",
   },
   firstDaySub: {
     ...Typography.bodySmall,
@@ -294,7 +308,7 @@ const styles = StyleSheet.create({
   },
   healingTitle: {
     ...Typography.h3,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   healingBody: {
     ...Typography.bodySmall,
@@ -319,7 +333,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   reflectionCard: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 16,
@@ -335,20 +349,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 22,
-    fontStyle: 'italic',
+    fontStyle: "italic",
+  },
+  hardMomentWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.lg,
+    paddingTop: Spacing.sm,
+    backgroundColor: "transparent",
+  },
+  hardMomentButton: {
+    backgroundColor: Colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  hardMomentText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.primaryLight,
   },
   winsLink: {
     paddingVertical: Spacing.xs,
   },
   winsLinkText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  quickLinks: {
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  quickLinkText: {
     fontSize: 13,
     color: Colors.textSecondary,
   },

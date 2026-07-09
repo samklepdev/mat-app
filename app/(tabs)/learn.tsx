@@ -8,8 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Colors, Spacing, Typography, Radius } from '../constants/theme';
-import { ARTICLES } from '../content/articles';
+import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
+import { ARTICLES } from '../../content/articles';
 
 export default function LearnScreen() {
   const clinical = ARTICLES.filter((a) => !a.placeholder);
@@ -21,11 +21,6 @@ export default function LearnScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.backRow}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.backButton}>‹ Back</Text>
-        </TouchableOpacity>
-      </View>
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -37,6 +32,20 @@ export default function LearnScreen() {
             Straight answers about MAT — no stigma, no steps.
           </Text>
         </View>
+
+        {/* The medicines — front door for someone just starting to look */}
+        <TouchableOpacity
+          style={styles.medicinesCard}
+          onPress={() => router.push('/medications')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.medicinesEyebrow}>START HERE</Text>
+          <Text style={styles.medicinesTitle}>The medicines</Text>
+          <Text style={styles.medicinesBody}>
+            Never heard of buprenorphine, methadone, or naltrexone? Plain answers about the medications that treat opioid addiction — and the science behind them.
+          </Text>
+          <Text style={styles.medicinesArrow}>Explore →</Text>
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>MEDICATION & TREATMENT</Text>
@@ -82,15 +91,36 @@ export default function LearnScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  backRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.xs,
-  },
-  backButton: { fontSize: 16, color: Colors.primary },
   content: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.xl },
   title: { ...Typography.h1, marginBottom: 4 },
   sub: { ...Typography.bodySmall, lineHeight: 20 },
+  medicinesCard: {
+    backgroundColor: Colors.primaryDim,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: 6,
+  },
+  medicinesEyebrow: {
+    ...Typography.eyebrow,
+    color: Colors.primaryLight,
+    letterSpacing: 1.2,
+  },
+  medicinesTitle: {
+    ...Typography.h2,
+    fontWeight: '500',
+  },
+  medicinesBody: {
+    ...Typography.bodySmall,
+    lineHeight: 20,
+  },
+  medicinesArrow: {
+    fontSize: 14,
+    color: Colors.primaryLight,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   section: { gap: Spacing.sm },
   sectionLabel: {
     ...Typography.eyebrow,

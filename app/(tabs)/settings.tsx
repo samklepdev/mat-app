@@ -319,14 +319,14 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Learn */}
+        {/* Personal */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>RESOURCES</Text>
+          <Text style={styles.sectionLabel}>FOR HARD MOMENTS</Text>
           <View style={styles.card}>
             <SettingRow
-              label="Learn about MAT"
-              value="8 articles"
-              onPress={() => router.push('/learn')}
+              label="Your why"
+              value={(profile as any)?.whyNote ? 'Written' : 'Not set'}
+              onPress={() => router.push('/why-note')}
             />
           </View>
         </View>
@@ -338,10 +338,15 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Delete data */}
+        {/* Data */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>DATA</Text>
           <View style={styles.card}>
+            <SettingRow
+              label="Bring to your appointment"
+              value="PDF summary"
+              onPress={() => router.push('/export-summary')}
+            />
             <TouchableOpacity style={styles.row} onPress={handleDeleteAllData} activeOpacity={0.7}>
               <Text style={styles.deleteLabel}>Delete all my data</Text>
             </TouchableOpacity>

@@ -12,16 +12,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { Colors, Spacing, Typography, Radius } from '../constants/theme';
-import { searchNearbyMatFacilities, TreatmentFacility, SearchResult } from '../api/findTreatment';
-import { SearchFilters, FilterState, DEFAULT_FILTERS, RadiusMiles } from '../components/features/SearchFilters';
+import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
+import { searchNearbyMatFacilities, TreatmentFacility, SearchResult } from '../../api/findTreatment';
+import { SearchFilters, FilterState, DEFAULT_FILTERS, RadiusMiles } from '../../components/features/SearchFilters';
 import {
   saveProvider,
   removeProvider,
   isProviderSaved,
   getSavedProviders,
-} from '../db';
-import { SavedProvider } from '../types';
+} from '../../db';
+import { SavedProvider } from '../../types';
 
 // ─── Facility card ────────────────────────────────────────────────────────────
 
@@ -214,11 +214,6 @@ export default function FindCareScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.backRow}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.backButton}>‹ Back</Text>
-        </TouchableOpacity>
-      </View>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -336,15 +331,6 @@ export default function FindCareScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-  backRow: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
-  },
-  backButton: {
-    fontSize: 16,
-    color: Colors.primary,
-  },
   content: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.lg },
   title: { ...Typography.h1, marginBottom: 4 },
   sub: { ...Typography.bodySmall, lineHeight: 20 },
