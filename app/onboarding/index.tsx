@@ -18,7 +18,7 @@ import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 import { MedicationType, UserProfile } from '../../types';
 import { useUserStore } from '../../store';
 import { upsertProfile } from '../../db';
-import { todayLocalISO } from '../../utils/date';
+import { toLocalISO } from '../../utils/date';
 import { requestNotificationPermissions, scheduleMedicationReminder, scheduleMissedCheckInNudge } from '../../hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
@@ -139,8 +139,8 @@ function MedicationScreen({
 }: {
   selected: MedicationType | null;
   onSelect: (t: MedicationType) => void;
-  startDate: string;
-  onDateChange: (v: string) => void;
+  startDate: Date;
+  onDateChange: (v: Date) => void;
   onNext: () => void;
 }) {
   return (
@@ -177,13 +177,14 @@ function MedicationScreen({
 
         <View style={styles.dateBlock}>
           <Text style={styles.dateLabel}>When did you start your medication?</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="MM / DD / YYYY"
-            placeholderTextColor={Colors.textMuted}
+          <DateTimePicker
             value={startDate}
-            onChangeText={onDateChange}
-            keyboardType="numeric"
+            mode="date"
+            display="spinner"
+            maximumDate={new Date()}
+            onChange={(_, date) => date && onDateChange(date)}
+            themeVariant="dark"
+            style={styles.timePicker}
           />
           <Text style={styles.dateHint}>Approximate is fine — this is just for your records.</Text>
         </View>
@@ -301,7 +302,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [medication, setMedication] = useState<MedicationType | null>(null);
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState<Date>(new Date());
   const [reminderTime, setReminderTime] = useState('08:00');
   const [reminderNote, setReminderNote] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -331,19 +332,10 @@ export default function OnboardingScreen() {
   const finish = (notificationsEnabled: boolean) => {
     const now = new Date().toISOString();
 
-    // Parse date input MM/DD/YYYY → YYYY-MM-DD directly, without
-    // building a Date object first — Date().toISOString() converts
-    // to UTC, which can shift the date by a day depending on timezone.
-    const parts = startDate.replace(/\s/g, '').split('/');
-    const parsedDate =
-      parts.length === 3
-        ? `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`
-        : todayLocalISO();
-
     const profile: UserProfile = {
       id: 'local-user',
       displayName: name.trim() || undefined,
-      treatmentStartDate: parsedDate,
+      treatmentStartDate: toLocalISO(startDate),
       onboardingComplete: true,
       notificationsEnabled,
       biometricLockEnabled: false,
