@@ -19,7 +19,7 @@ import { MedicationType, UserProfile } from '../../types';
 import { useUserStore } from '../../store';
 import { upsertProfile } from '../../db';
 import { todayLocalISO } from '../../utils/date';
-import { requestNotificationPermissions, scheduleMedicationReminder } from '../../hooks/useNotifications';
+import { requestNotificationPermissions, scheduleMedicationReminder, scheduleMissedCheckInNudge } from '../../hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 
@@ -360,6 +360,7 @@ export default function OnboardingScreen() {
       requestNotificationPermissions().then((granted) => {
         if (granted) {
           scheduleMedicationReminder(reminderTime, reminderNote.trim() || undefined);
+          scheduleMissedCheckInNudge();
         }
       });
     }
