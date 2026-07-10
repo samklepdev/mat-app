@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mat-app",
-    "slug": "mat-app",
+    "name": "Steady",
+    "slug": "steady",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
