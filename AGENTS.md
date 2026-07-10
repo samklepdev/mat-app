@@ -28,6 +28,11 @@ npm run web          # expo start --web
 
 There is no configured lint, typecheck, or test script in `package.json`. Use `npx tsc --noEmit` for a manual typecheck against `tsconfig.json` if needed.
 
+## Dev environment gotchas
+
+- **`pod install` fails with "Unable to locate the executable cmake"** (usually surfaces via `npx expo run:ios`, inside the `hermes-engine.podspec` step): Hermes (React Native's JS engine) needs `cmake` to compile, and it's not a Homebrew/Xcode default. Fix: `brew install cmake`, then re-run `npx expo run:ios` — `pod install` runs automatically as part of that. If a *different* error mentions `xcodebuild` or licensing afterward, run `sudo xcodebuild -license accept` and `xcode-select --install`.
+- **Local iOS device builds and a free/personal Apple ID**: `expo-notifications` unconditionally adds the `aps-environment` (push notification) entitlement on prebuild, which a free Apple Developer team can't provision ("do not support the Push Notifications capability") — even though this app only ever uses local notifications. `plugins/withDevFriendlyIOS.js` strips that entitlement automatically on every `expo prebuild`, and also disables `ENABLE_USER_SCRIPT_SANDBOXING` (Xcode 15+ defaults new projects to sandboxing build-phase scripts, which breaks the Expo dev-client bundling script). Both fixes are permanent via that plugin — don't hand-patch `ios/` directly, it gets wiped on the next `expo prebuild --clean`.
+
 ## Architecture
 
 **Local-first, no backend.** All user data (profile, medications, check-ins, journal, wins, saved providers) is stored on-device in SQLite. The one exception is `api/findTreatment.ts`, which calls the public SAMHSA `findtreatment.gov` API to search for nearby MAT providers — nothing about the user is sent to it beyond lat/lng.
