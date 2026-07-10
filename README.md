@@ -1,4 +1,4 @@
-# MAT App
+# Steady
 
 A React Native mobile app built with Expo for medication-assisted treatment (MAT) support. The project uses Expo Router, SQLite persistence, and local-only onboarding/check-in experiences for a private, device-first tracking flow.
 

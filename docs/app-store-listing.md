@@ -1,14 +1,6 @@
-# App Store listing — "Steady"
+# App Store listing — Steady
 
-## Naming decision
-
-**App name: Steady** (not "MAT Tracker," "MATStay," or similar).
-
-Reasoning:
-
-- **Discretion is a feature, not a loss.** Stigma is central to what this app pushes back on — people are told medication isn't "real" recovery. An app named after the medication category sits on someone's home screen announcing their medical status to anyone who glances at their phone (a roommate, a date, a coworker, a parent). "Steady" reveals nothing. For a population that faces real discrimination in housing, employment, and healthcare, that privacy is protective, not cosmetic.
-- **"Steady" says what the app is for, not what condition you have.** MAT is the mechanism; steadiness is the goal. Naming it after the medication category defines users by their diagnosis. Naming it "Steady" defines them by what they're building — the same reframe the whole app is built around ("not a tool to manage a problem — a mirror that reflects back: you are stable").
-- **Discoverability is the one real tradeoff, and it's solved elsewhere.** App Store search (people typing "MAT app," "methadone tracker," etc.) is handled by the subtitle and keywords, not the name — so "Steady" stays clean and dignified on the home screen while the store listing still surfaces it to the person searching at 3am.
+**App name:** Steady — not named after the medication category, so it reveals nothing about the user's medical status on their home screen. MAT context lives in the subtitle/keywords instead, where it does discovery work without branding the user.
 
 ## Listing copy
 
@@ -18,12 +10,7 @@ Steady
 **Subtitle** (30 char max)
 Recovery support for MAT — 24 chars
 
-Alternatives considered:
-- Your MAT recovery companion — 27 chars, warmer, "companion" signals daily support
-- Steady support for MAT — 22 chars
-- MAT recovery, on your terms — 27 chars, echoes the autonomy theme
-
-**Keywords** (100 char max, comma-separated, no spaces after commas — Apple indexes name/subtitle words automatically so they're deliberately excluded here)
+**Keywords** (100 char max, comma-separated, no spaces — name/subtitle words excluded since Apple indexes those automatically)
 ```
 methadone,buprenorphine,suboxone,sublocade,opioid,addiction,sobriety,craving,checkin,vivitrol
 ```
@@ -70,9 +57,8 @@ methadone,buprenorphine,suboxone,sublocade,opioid,addiction,sobriety,craving,che
 
 ## Compliance note
 
-Apple's (and Apple's medical-app review's) stance on medical claims is strict. Keep listing language supportive — "support for," "track," "find care" — and avoid anything that reads as a treatment or outcome claim ("reduces cravings," "improves recovery rates"). The copy above is written to stay on the safe side of that line; re-check this if the description is edited later.
+Apple's medical-app review is strict about medical claims. Keep listing language supportive — "support for," "track," "find care" — and avoid anything that reads as a treatment or outcome claim ("reduces cravings," "improves recovery rates"). Re-check this if the description is edited later.
 
 ## Still needed before submission
 
-- Screenshots (the description above assumes these come next)
-- Actually renaming the app from `mat-app`/"mat-app" to "Steady" in `app.json` (`name`, `slug`) and possibly the bundle identifier — not yet done as of this writing
+- Screenshots
