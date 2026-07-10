@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -61,39 +61,48 @@ export default function HomeScreen() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [checkInPayoff, setCheckInPayoff] = useState<CheckInResponse | null>(null);
 
+  // Elapsed full days since the start date — someone who started today is
+  // clamped to Day 1, matching how Wins' money-saved count already computes
+  // "days since" elsewhere (no off-by-one from an extra +1 here).
   const treatmentDay = profile
     ? Math.max(
         1,
         Math.floor(
           (Date.now() - parseLocalISO(profile.treatmentStartDate).getTime()) /
             86400000,
-        ) + 1,
+        ),
       )
     : 1;
   const healingMilestone = getMilestoneForDay(treatmentDay);
   const reflection = getTodaysReflection();
 
-  // On mount: check SQLite for today's check-in and current streak,
-  // since Zustand state resets on every cold app launch.
-  useEffect(() => {
-    const existing = getCheckInByDate(todayISO());
-    if (existing) {
-      setTodayCheckIn(mapRowToCheckIn(existing));
-    }
+  // Refresh on every focus, not just first mount — Expo Router keeps
+  // inactive tab screens frozen (react-native-screens), so a plain
+  // useEffect(..., []) never reruns when this tab regains focus after
+  // something changed elsewhere (e.g. resetting the start date in
+  // Settings). This also re-syncs today's check-in and streak, matching
+  // the same pattern journal.tsx already uses for its own data.
+  useFocusEffect(
+    useCallback(() => {
+      const existing = getCheckInByDate(todayISO());
+      if (existing) {
+        setTodayCheckIn(mapRowToCheckIn(existing));
+      }
 
-    const streak = getCurrentStreak();
-    setStability({
-      currentStreakDays: streak,
-      longestStreakDays: streak, // TODO: track separately once we have history
-      totalCheckIns: 0,
-      medicationAdherencePercent: 0,
-      startDate: profile?.treatmentStartDate ?? todayISO(),
-    });
+      const streak = getCurrentStreak();
+      setStability({
+        currentStreakDays: streak,
+        longestStreakDays: streak, // TODO: track separately once we have history
+        totalCheckIns: 0,
+        medicationAdherencePercent: 0,
+        startDate: profile?.treatmentStartDate ?? todayISO(),
+      });
 
-    // Generate insights from check-in history
-    const stats = getCheckInStats(90);
-    setInsights(generateInsights(stats));
-  }, []);
+      // Generate insights from check-in history
+      const stats = getCheckInStats(90);
+      setInsights(generateInsights(stats));
+    }, [])
+  );
 
   const handleCheckIn = async (data: {
     mood: number;
