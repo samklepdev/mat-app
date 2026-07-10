@@ -6,9 +6,26 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/theme';
 import { initDatabase, getProfile } from '../db';
 import '../tasks/medicationTask'; // register background task at startup
-import { registerNotificationCategory, useEngagementNotificationRouting } from '../hooks/useNotifications';
+import {
+  registerNotificationCategory,
+  scheduleReflectionNotification,
+  useEngagementNotificationRouting,
+} from '../hooks/useNotifications';
 import { useUserStore } from '../store';
 import { UserProfile } from '../types';
+
+function parseReminderTimes(row: Record<string, unknown>): string[] {
+  const raw = row.reminder_times as string | null;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // Fall through to the legacy single-time column below.
+    }
+  }
+  return [(row.reminder_time as string) ?? '08:00'];
+}
 
 function mapRowToProfile(row: Record<string, unknown>): UserProfile {
   return {
@@ -18,7 +35,7 @@ function mapRowToProfile(row: Record<string, unknown>): UserProfile {
     onboardingComplete: row.onboarding_complete === 1,
     notificationsEnabled: row.notifications_enabled === 1,
     biometricLockEnabled: row.biometric_lock_enabled === 1,
-    reminderTime: (row.reminder_time as string) ?? '08:00',
+    reminderTimes: parseReminderTimes(row),
     reminderNote: (row.reminder_note as string) ?? undefined,
     dailyCost: (row.daily_cost as number) ?? undefined,
     whyNote: (row.why_note as string) ?? undefined,
@@ -38,9 +55,16 @@ export default function RootLayout() {
     const row = getProfile();
 
     if (row) {
-      setProfile(mapRowToProfile(row));
+      const profile = mapRowToProfile(row);
+      setProfile(profile);
       setReady(true);
       router.replace('/(tabs)');
+
+      // Reschedule tomorrow's reflection notification on every launch, since
+      // a single repeating trigger can't carry different text each day.
+      if (profile.notificationsEnabled) {
+        scheduleReflectionNotification();
+      }
     } else {
       setReady(true);
       router.replace('/onboarding');

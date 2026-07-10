@@ -16,7 +16,7 @@ import { Colors, Spacing, Typography, Radius } from '../../constants/theme';
 import { router } from 'expo-router';
 import { useUserStore } from '../../store';
 import { upsertProfile, deleteAllData } from '../../db';
-import { parseLocalISO } from '../../utils/date';
+import { parseLocalISO, toLocalISO, formatTimeHHMM } from '../../utils/date';
 import {
   requestNotificationPermissions,
   scheduleMedicationReminder,
@@ -24,7 +24,10 @@ import {
   scheduleMissedCheckInNudge,
   cancelMissedCheckInNudge,
   cancelSupportiveNudge,
+  scheduleReflectionNotification,
+  cancelReflectionNotification,
 } from '../../hooks/useNotifications';
+import { ReminderTimesEditor } from '../../components/features/ReminderTimesEditor';
 
 const MEDICATION_LABELS: Record<string, string> = {
   buprenorphine: 'Buprenorphine',
@@ -35,13 +38,6 @@ const MEDICATION_LABELS: Record<string, string> = {
   vivitrol: 'Vivitrol',
   other: 'Other MAT medication',
 };
-
-function formatTime(hhmm: string): string {
-  const [h, m] = hhmm.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
 
 function formatDate(iso: string): string {
   return parseLocalISO(iso).toLocaleDateString(undefined, {
@@ -82,29 +78,22 @@ function SettingRow({
 
 function ReminderModal({
   visible,
-  initialTime,
+  initialTimes,
   initialNote,
   onClose,
   onSave,
 }: {
   visible: boolean;
-  initialTime: string;
+  initialTimes: string[];
   initialNote?: string;
   onClose: () => void;
-  onSave: (time: string, note: string) => void;
+  onSave: (times: string[], note: string) => void;
 }) {
-  const [hours, minutes] = initialTime.split(':').map(Number);
-  const [time, setTime] = useState(() => {
-    const d = new Date();
-    d.setHours(hours, minutes, 0, 0);
-    return d;
-  });
+  const [times, setTimes] = useState<string[]>(initialTimes);
   const [note, setNote] = useState(initialNote ?? '');
 
   const handleSave = () => {
-    const h = time.getHours().toString().padStart(2, '0');
-    const m = time.getMinutes().toString().padStart(2, '0');
-    onSave(`${h}:${m}`, note);
+    onSave(times, note);
   };
 
   return (
@@ -113,14 +102,7 @@ function ReminderModal({
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>Daily reminder</Text>
 
-          <DateTimePicker
-            value={time}
-            mode="time"
-            display="spinner"
-            onChange={(_, date) => date && setTime(date)}
-            themeVariant="dark"
-            style={{ height: 150 }}
-          />
+          <ReminderTimesEditor times={times} onChange={setTimes} />
 
           <Text style={styles.modalLabel}>Note (optional)</Text>
           <TextInput
@@ -136,6 +118,55 @@ function ReminderModal({
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={styles.modalSaveBtn}>
+              <Text style={styles.modalSaveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Start date reset modal ────────────────────────────────────────────────────
+
+function StartDateModal({
+  visible,
+  initialDate,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  initialDate: string;
+  onClose: () => void;
+  onSave: (date: Date) => void;
+}) {
+  const [date, setDate] = useState<Date>(() => parseLocalISO(initialDate));
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Reset your start date</Text>
+          <Text style={styles.modalLabel}>
+            This updates your day count, healing timeline, and money-saved total.
+            Your check-ins, journal entries, and wins are kept exactly as they are.
+          </Text>
+
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="spinner"
+            maximumDate={new Date()}
+            onChange={(_, d) => d && setDate(d)}
+            themeVariant="dark"
+            style={{ height: 150, marginLeft: -10 }}
+          />
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity onPress={onClose} style={styles.modalCancelBtn}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onSave(date)} style={styles.modalSaveBtn}>
               <Text style={styles.modalSaveText}>Save</Text>
             </TouchableOpacity>
           </View>
@@ -186,6 +217,7 @@ function AboutModal({ visible, onClose }: { visible: boolean; onClose: () => voi
 export default function SettingsScreen() {
   const { profile, setProfile } = useUserStore();
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
+  const [startDateModalVisible, setStartDateModalVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     profile?.notificationsEnabled ?? false
@@ -217,6 +249,7 @@ export default function SettingsScreen() {
             await cancelMedicationReminder();
             await cancelMissedCheckInNudge();
             await cancelSupportiveNudge();
+            await cancelReflectionNotification();
             deleteAllData();
             router.replace('/onboarding');
           },
@@ -233,7 +266,7 @@ export default function SettingsScreen() {
       treatmentStartDate: updated.treatmentStartDate,
       notificationsEnabled: updated.notificationsEnabled,
       biometricLockEnabled: updated.biometricLockEnabled,
-      reminderTime: updated.reminderTime,
+      reminderTimes: updated.reminderTimes,
       reminderNote: updated.reminderNote,
       createdAt: updated.createdAt,
     });
@@ -245,23 +278,30 @@ export default function SettingsScreen() {
     if (value) {
       const granted = await requestNotificationPermissions();
       if (granted) {
-        await scheduleMedicationReminder(profile.reminderTime, profile.reminderNote);
+        await scheduleMedicationReminder(profile.reminderTimes, profile.reminderNote);
         await scheduleMissedCheckInNudge();
+        await scheduleReflectionNotification();
       }
     } else {
       await cancelMedicationReminder();
       await cancelMissedCheckInNudge();
       await cancelSupportiveNudge();
+      await cancelReflectionNotification();
     }
     persistProfile({ notificationsEnabled: value });
   };
 
-  const handleReminderSave = async (time: string, note: string) => {
+  const handleReminderSave = async (times: string[], note: string) => {
     setReminderModalVisible(false);
-    persistProfile({ reminderTime: time, reminderNote: note.trim() || undefined });
+    persistProfile({ reminderTimes: times, reminderNote: note.trim() || undefined });
     if (notificationsEnabled) {
-      await scheduleMedicationReminder(time, note.trim() || undefined);
+      await scheduleMedicationReminder(times, note.trim() || undefined);
     }
+  };
+
+  const handleStartDateSave = (date: Date) => {
+    setStartDateModalVisible(false);
+    persistProfile({ treatmentStartDate: toLocalISO(date) });
   };
 
   return (
@@ -276,7 +316,11 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>YOUR MEDICATION</Text>
           <View style={styles.card}>
-            <SettingRow label="Your start date" value={formatDate(profile.treatmentStartDate)} />
+            <SettingRow
+              label="Your start date"
+              value={formatDate(profile.treatmentStartDate)}
+              onPress={() => setStartDateModalVisible(true)}
+            />
           </View>
         </View>
 
@@ -296,7 +340,7 @@ export default function SettingsScreen() {
             {notificationsEnabled && (
               <SettingRow
                 label="Time"
-                value={formatTime(profile.reminderTime)}
+                value={profile.reminderTimes.map(formatTimeHHMM).join(', ')}
                 onPress={() => setReminderModalVisible(true)}
               />
             )}
@@ -367,10 +411,17 @@ export default function SettingsScreen() {
 
       <ReminderModal
         visible={reminderModalVisible}
-        initialTime={profile.reminderTime}
+        initialTimes={profile.reminderTimes}
         initialNote={profile.reminderNote}
         onClose={() => setReminderModalVisible(false)}
         onSave={handleReminderSave}
+      />
+
+      <StartDateModal
+        visible={startDateModalVisible}
+        initialDate={profile.treatmentStartDate}
+        onClose={() => setStartDateModalVisible(false)}
+        onSave={handleStartDateSave}
       />
 
       <AboutModal visible={aboutVisible} onClose={() => setAboutVisible(false)} />

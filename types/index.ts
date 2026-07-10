@@ -79,7 +79,7 @@ export interface UserProfile {
   onboardingComplete: boolean;
   notificationsEnabled: boolean;
   biometricLockEnabled: boolean;
-  reminderTime: string;   // "HH:MM" 24hr, default "08:00"
+  reminderTimes: string[]; // "HH:MM" 24hr, one per daily dose, default ["08:00"]
   reminderNote?: string;  // optional e.g. "leave for clinic"
   dailyCost?: number;     // former daily spend, for the money-saved tracker
   whyNote?: string;       // personal note surfaced in the hard-moment screen

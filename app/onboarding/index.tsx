@@ -18,8 +18,14 @@ import { Colors, Typography, Spacing, Radius } from '../../constants/theme';
 import { MedicationType, UserProfile } from '../../types';
 import { useUserStore } from '../../store';
 import { upsertProfile } from '../../db';
-import { toLocalISO } from '../../utils/date';
-import { requestNotificationPermissions, scheduleMedicationReminder, scheduleMissedCheckInNudge } from '../../hooks/useNotifications';
+import { toLocalISO, formatTimeHHMM } from '../../utils/date';
+import {
+  requestNotificationPermissions,
+  scheduleMedicationReminder,
+  scheduleMissedCheckInNudge,
+  scheduleReflectionNotification,
+} from '../../hooks/useNotifications';
+import { ReminderTimesEditor } from '../../components/features/ReminderTimesEditor';
 
 const { width } = Dimensions.get('window');
 
@@ -206,31 +212,18 @@ function MedicationScreen({
 function NotificationsScreen({
   onEnable,
   onSkip,
-  reminderTime,
-  onTimeChange,
+  reminderTimes,
+  onTimesChange,
   reminderNote,
   onNoteChange,
 }: {
   onEnable: () => void;
   onSkip: () => void;
-  reminderTime: string;
-  onTimeChange: (t: string) => void;
+  reminderTimes: string[];
+  onTimesChange: (t: string[]) => void;
   reminderNote: string;
   onNoteChange: (n: string) => void;
 }) {
-  // Parse HH:MM for display
-  const [hours, minutes] = reminderTime.split(':').map(Number);
-  const displayTime = new Date();
-  displayTime.setHours(hours, minutes, 0, 0);
-  const timeLabel = displayTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-  const handleTimeChange = (_: any, date?: Date) => {
-    if (!date) return;
-    const h = date.getHours().toString().padStart(2, '0');
-    const m = date.getMinutes().toString().padStart(2, '0');
-    onTimeChange(`${h}:${m}`);
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -245,21 +238,14 @@ function NotificationsScreen({
           <Text style={styles.eyebrow}>STEP 3 OF 3</Text>
           <Text style={styles.stepTitle}>A quiet reminder</Text>
           <Text style={styles.stepSub}>
-            Once a day. Just enough to check in with yourself.
+            Once a day, or as many times as you take it. Just enough to check in with yourself.
           </Text>
         </View>
 
-        {/* Time picker */}
+        {/* Time picker(s) */}
         <View>
           <Text style={styles.dateLabel}>What time works for you?</Text>
-          <DateTimePicker
-            value={displayTime}
-            mode="time"
-            display="spinner"
-            onChange={handleTimeChange}
-            themeVariant="dark"
-            style={styles.timePicker}
-          />
+          <ReminderTimesEditor times={reminderTimes} onChange={onTimesChange} />
         </View>
 
         {/* Note field */}
@@ -280,7 +266,9 @@ function NotificationsScreen({
           {reminderNote.trim() ? (
             <Text style={styles.notifNote}>{reminderNote}</Text>
           ) : null}
-          <Text style={styles.notifTime}>Every day · {timeLabel}</Text>
+          <Text style={styles.notifTime}>
+            Every day · {reminderTimes.map(formatTimeHHMM).join(', ')}
+          </Text>
         </View>
 
         <View style={styles.stepActions}>
@@ -303,7 +291,7 @@ export default function OnboardingScreen() {
   const [name, setName] = useState('');
   const [medication, setMedication] = useState<MedicationType | null>(null);
   const [startDate, setStartDate] = useState<Date>(new Date());
-  const [reminderTime, setReminderTime] = useState('08:00');
+  const [reminderTimes, setReminderTimes] = useState<string[]>(['08:00']);
   const [reminderNote, setReminderNote] = useState('');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const { setProfile } = useUserStore();
@@ -339,7 +327,7 @@ export default function OnboardingScreen() {
       onboardingComplete: true,
       notificationsEnabled,
       biometricLockEnabled: false,
-      reminderTime,
+      reminderTimes,
       reminderNote: reminderNote.trim() || undefined,
       createdAt: now,
     };
@@ -347,12 +335,13 @@ export default function OnboardingScreen() {
     // Persist to SQLite
     upsertProfile(profile);
 
-    // Schedule the daily medication reminder if enabled
+    // Schedule the daily medication reminder(s) if enabled
     if (notificationsEnabled) {
       requestNotificationPermissions().then((granted) => {
         if (granted) {
-          scheduleMedicationReminder(reminderTime, reminderNote.trim() || undefined);
+          scheduleMedicationReminder(reminderTimes, reminderNote.trim() || undefined);
           scheduleMissedCheckInNudge();
+          scheduleReflectionNotification();
         }
       });
     }
@@ -374,8 +363,8 @@ export default function OnboardingScreen() {
     <NotificationsScreen
       onEnable={() => finish(true)}
       onSkip={() => finish(false)}
-      reminderTime={reminderTime}
-      onTimeChange={setReminderTime}
+      reminderTimes={reminderTimes}
+      onTimesChange={setReminderTimes}
       reminderNote={reminderNote}
       onNoteChange={setReminderNote}
     />,
