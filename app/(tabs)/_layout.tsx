@@ -57,7 +57,7 @@ export default function TabsLayout() {
         name="journal"
         options={{
           title: 'Journal',
-          headerTitle: 'Journal',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="create-outline" size={size} color={color} />
           ),
@@ -67,7 +67,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          headerTitle: 'Settings',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={color} />
           ),
