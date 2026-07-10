@@ -27,3 +27,20 @@ export function parseLocalISO(iso: string): Date {
 export function isSameLocalDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }
+
+// Formats a "HH:MM" 24hr string as a locale time, e.g. "8:00 AM".
+export function formatTimeHHMM(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+// Parses a "HH:MM" 24hr string into a Date with today's date and that time
+// — the shape @react-native-community/datetimepicker expects as a value.
+export function parseTimeHHMM(hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+import { getTodaysReflection } from '../content/reflections';
 
 export const MEDICATION_TAKEN_ACTION = 'MEDICATION_TAKEN';
 export const MEDICATION_REMINDER_TASK = 'MEDICATION_REMINDER_TASK';
@@ -39,33 +40,49 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
-// ─── Daily medication reminder ────────────────────────────────────────────────
+// ─── Daily medication reminder(s) ─────────────────────────────────────────────
+// One notification per configured time, so someone taking their medication
+// twice a day gets reminded both times, not just once.
+
+const MAX_MEDICATION_REMINDERS = 6;
+
+function medicationReminderId(index: number): string {
+  return `medication-reminder-${index}`;
+}
 
 export async function scheduleMedicationReminder(
-  timeHHMM: string,
+  times: string[],
   note?: string
 ): Promise<void> {
   await cancelMedicationReminder();
-  const [hours, minutes] = timeHHMM.split(':').map(Number);
 
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'medication-reminder',
-    content: {
-      title: 'Time for your medication.',
-      body: note?.trim() || undefined,
-      categoryIdentifier: 'medication',
-      data: { type: 'medication-reminder' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: hours,
-      minute: minutes,
-    },
-  });
+  await Promise.all(
+    times.map((timeHHMM, index) => {
+      const [hours, minutes] = timeHHMM.split(':').map(Number);
+      return Notifications.scheduleNotificationAsync({
+        identifier: medicationReminderId(index),
+        content: {
+          title: 'Time for your medication.',
+          body: note?.trim() || undefined,
+          categoryIdentifier: 'medication',
+          data: { type: 'medication-reminder' },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours,
+          minute: minutes,
+        },
+      });
+    })
+  );
 }
 
 export async function cancelMedicationReminder(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync('medication-reminder');
+  await Promise.all(
+    Array.from({ length: MAX_MEDICATION_REMINDERS }, (_, i) =>
+      Notifications.cancelScheduledNotificationAsync(medicationReminderId(i))
+    )
+  );
 }
 
 export async function dismissTodaysReminder(): Promise<void> {
@@ -93,6 +110,43 @@ export async function scheduleWeeklySummary(): Promise<void> {
       minute: 0,
     },
   });
+}
+
+// ─── Daily reflection notification — 9AM ──────────────────────────────────────
+// Reflections rotate deterministically by date (see content/reflections.ts),
+// so a single repeating DAILY trigger can't carry the right text for every
+// future day — its content is fixed the moment it's scheduled. Instead this
+// schedules a one-shot notification for *tomorrow's* reflection each time the
+// app opens (see app/_layout.tsx), so the content is always one day fresh
+// without needing any background polling.
+
+const REFLECTION_NOTIFICATION_ID = 'daily-reflection';
+
+export async function scheduleReflectionNotification(): Promise<void> {
+  await cancelReflectionNotification();
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+
+  const reflection = getTodaysReflection(tomorrow);
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: REFLECTION_NOTIFICATION_ID,
+    content: {
+      title: "Today's reflection",
+      body: reflection.text,
+      data: { type: 'daily-reflection' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: tomorrow,
+    },
+  });
+}
+
+export async function cancelReflectionNotification(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(REFLECTION_NOTIFICATION_ID);
 }
 
 export async function cancelWeeklySummary(): Promise<void> {

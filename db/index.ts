@@ -86,6 +86,11 @@ export function initDatabase(): void {
     `ALTER TABLE user_profile ADD COLUMN reminder_note TEXT`,
     `ALTER TABLE user_profile ADD COLUMN daily_cost REAL`,
     `ALTER TABLE user_profile ADD COLUMN why_note TEXT`,
+    // JSON-encoded array of "HH:MM" strings, e.g. '["08:00","20:00"]", for
+    // medications taken more than once a day. reminder_time (singular) is
+    // kept in sync with the first entry for backward compatibility with
+    // rows written before this column existed.
+    `ALTER TABLE user_profile ADD COLUMN reminder_times TEXT`,
   ];
 
   for (const sql of migrations) {
@@ -111,20 +116,21 @@ export function upsertProfile(profile: {
   treatmentStartDate: string;
   notificationsEnabled: boolean;
   biometricLockEnabled: boolean;
-  reminderTime: string;
+  reminderTimes: string[];
   reminderNote?: string;
   createdAt: string;
 }): void {
   db.runSync(
     `INSERT INTO user_profile
-      (id, display_name, treatment_start_date, onboarding_complete, notifications_enabled, biometric_lock_enabled, reminder_time, reminder_note, created_at)
-     VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+      (id, display_name, treatment_start_date, onboarding_complete, notifications_enabled, biometric_lock_enabled, reminder_time, reminder_times, reminder_note, created_at)
+     VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        display_name = excluded.display_name,
        treatment_start_date = excluded.treatment_start_date,
        notifications_enabled = excluded.notifications_enabled,
        biometric_lock_enabled = excluded.biometric_lock_enabled,
        reminder_time = excluded.reminder_time,
+       reminder_times = excluded.reminder_times,
        reminder_note = excluded.reminder_note`,
     [
       profile.id,
@@ -132,7 +138,8 @@ export function upsertProfile(profile: {
       profile.treatmentStartDate,
       profile.notificationsEnabled ? 1 : 0,
       profile.biometricLockEnabled ? 1 : 0,
-      profile.reminderTime,
+      profile.reminderTimes[0] ?? '08:00',
+      JSON.stringify(profile.reminderTimes),
       profile.reminderNote ?? null,
       profile.createdAt,
     ]
