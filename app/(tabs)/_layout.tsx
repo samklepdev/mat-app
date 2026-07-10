@@ -27,7 +27,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Today',
-          headerTitle: '',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="today-outline" size={size} color={color} />
           ),
